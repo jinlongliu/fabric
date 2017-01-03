@@ -193,12 +193,15 @@ message Message {
         SYNC_BLOCKS = 12;
         SYNC_BLOCK_ADDED = 13;
 
+        //世界状态
         SYNC_STATE_GET_SNAPSHOT = 14;
         SYNC_STATE_SNAPSHOT = 15;
+        //增量状态
         SYNC_STATE_GET_DELTAS = 16;
         SYNC_STATE_DELTAS = 17;
 
         RESPONSE = 20;
+        //一致性消息，框架将CHAIN_TRANSACTION转换为CONSENSUS包含相同的payload
         CONSENSUS = 21;
     }
     Type type = 1;
@@ -233,7 +236,7 @@ message BlockState {
 // in which blocks are returned is defined by the start and end values. For
 // example, if start=3 and end=5, the order of blocks will be 3, 4, 5.
 // If start=5 and end=3, the order will be 5, 4, 3.
-// SYNC_GET_BLOCKS 的 payload
+// SYNC_GET_BLOCKS 的 payload，同步块范围
 message SyncBlockRange {
     uint64 correlationId = 1;
     uint64 start = 2;
@@ -242,20 +245,23 @@ message SyncBlockRange {
 
 // SyncBlocks is the payload of Message.SYNC_BLOCKS, where the range
 // indicates the blocks responded to the request SYNC_GET_BLOCKS
+// 回应SYNC_BLOCKS消息
 message SyncBlocks {
     SyncBlockRange range = 1;
     repeated Block blocks = 2;
 }
 
-// SyncSnapshotRequest Payload for the penchainMessage.SYNC_GET_SNAPSHOT message.
+// SyncSnapshotRequest Payload for the penchainMessage.SYNC_STATE_GET_SNAPSHOT message.
+// 请求当前世界状态的快照消息的payload
 message SyncStateSnapshotRequest {
   uint64 correlationId = 1;
 }
 
-// SyncStateSnapshot is the payload of Message.SYNC_SNAPSHOT, which is a response
+// SyncStateSnapshot is the payload of Message.SYNC_STATE_SNAPSHOT, which is a response
 // to penchainMessage.SYNC_GET_SNAPSHOT. It contains the snapshot or a chunk of the
 // snapshot on stream, and in which case, the sequence indicate the order
 // starting at 0.  The terminating message will have len(delta) == 0.
+// 回应请求的当前世界状态快照
 message SyncStateSnapshot {
     bytes delta = 1;
     uint64 sequence = 2;
@@ -267,12 +273,14 @@ message SyncStateSnapshot {
 // blockNumber indicates the block number for the delta which is being
 // requested. If no payload is included with SYNC_GET_STATE, it represents
 // a request for a snapshot of the current state.
+// 同步状态增量同步请求
 message SyncStateDeltasRequest {
     SyncBlockRange range = 1;
 }
 
 // SyncStateDeltas is the payload of the Message.SYNC_STATE in response to
 // the Message.SYNC_GET_STATE message.
+// 回应状态增量同步请求
 message SyncStateDeltas {
     SyncBlockRange range = 1;
     repeated bytes deltas = 2;
