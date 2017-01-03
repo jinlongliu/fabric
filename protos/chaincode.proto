@@ -129,6 +129,7 @@ message ChaincodeSecurityContext {
     google.protobuf.Timestamp txTimestamp = 7; // transaction timestamp
 }
 
+// chaincode 协议
 message ChaincodeMessage {
 
     enum Type {

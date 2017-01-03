@@ -91,12 +91,17 @@ message TransactionResult {
 // hash. This allows this data to be different per peer or discarded without
 // impacting the blockchain.
 message Block {
+    // 版本
     uint32 version = 1;
     google.protobuf.Timestamp timestamp = 2;
     repeated Transaction transactions = 3;
+    // 世界状态Merkle树根哈希值
     bytes stateHash = 4;
+    // 前一区块哈希值，采用算法  SHA3 SHAKE256 描述于FIPS202   http://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.202.pdf
     bytes previousBlockHash = 5;
+    // 一致性元数据
     bytes consensusMetadata = 6;
+    // 存储非所有节点要求的区块元数据
     NonHashData nonHashData = 7;
 }
 
