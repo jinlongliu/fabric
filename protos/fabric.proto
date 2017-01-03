@@ -43,6 +43,7 @@ message Transaction {
     //store ChaincodeID as bytes so its encrypted value can be stored
     //智能合约ID
     bytes chaincodeID = 2;
+    //根据类型的不同，为不同的消息对象
     bytes payload = 3;
     bytes metadata = 4;
     string txid = 5;

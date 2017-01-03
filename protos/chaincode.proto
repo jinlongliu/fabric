@@ -36,6 +36,7 @@ enum ConfidentialityLevel {
 //are expected to provide the hashCode. The other value will be ignored.
 //Internally, the structure could contain both values. For instance, the
 //hashCode will be set when first generated using the path
+//只能合约源码路径和名称
 message ChaincodeID {
     //deploy transaction will use the path
     string path = 1;
@@ -66,16 +67,22 @@ message ChaincodeSpec {
 
     Type type = 1;
     ChaincodeID chaincodeID = 2;
+    //智能合约函数名称以及参数值
     ChaincodeInput ctorMsg = 3;
+    //执行超时
     int32 timeout = 4;
+    //安全内容
     string secureContext = 5;
+    //机密级别
     ConfidentialityLevel confidentialityLevel = 6;
+    //元数据
     bytes metadata = 7;
     repeated string attributes = 8;
 }
 
 // Specify the deployment of a chaincode.
 // TODO: Define `codePackage`.
+// 智能合约部署详情
 message ChaincodeDeploymentSpec {
 
     enum ExecutionEnvironment {
@@ -85,13 +92,16 @@ message ChaincodeDeploymentSpec {
 
     ChaincodeSpec chaincodeSpec = 1;
     // Controls when the chaincode becomes executable.
+    //控制智能合约何时可执行
     google.protobuf.Timestamp effectiveDate = 2;
+    //智能合约源码压缩包
     bytes codePackage = 3;
     ExecutionEnvironment execEnv=  4;
 
 }
 
 // Carries the chaincode function and its arguments.
+// 智能合约调用详情
 message ChaincodeInvocationSpec {
 
     ChaincodeSpec chaincodeSpec = 1;
