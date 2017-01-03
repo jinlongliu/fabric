@@ -25,6 +25,7 @@ import "google/protobuf/timestamp.proto";
 // whatever format they wish for the arguments for their chaincode.
 // For example, they may wish to use JSON, XML, or a custom format.
 // TODO: Defined remaining fields.
+//如果消息为CHAIN_TRANSACTION则playload为如下对象
 message Transaction {
     enum Type {
         UNDEFINED = 0;
@@ -37,8 +38,10 @@ message Transaction {
         // terminate a chaincode; not implemented yet
         CHAINCODE_TERMINATE = 4;
     }
+    //
     Type type = 1;
     //store ChaincodeID as bytes so its encrypted value can be stored
+    //智能合约ID
     bytes chaincodeID = 2;
     bytes payload = 3;
     bytes metadata = 4;
@@ -100,6 +103,7 @@ message Block {
 // block hash, and previous block hash.
 message BlockchainInfo {
 
+    //区块高度
     uint64 height = 1;
     bytes currentBlockHash = 2;
     bytes previousBlockHash = 3;
@@ -133,12 +137,15 @@ message PeerAddress {
     int32 port = 2;
 }
 
+//节点名称
 message PeerID {
     string name = 1;
 }
 
+//描述末端，是否是验证节点或非验证节点
 message PeerEndpoint {
     PeerID ID = 1;
+    //ip:port格式的主机地址信息
     string address = 2;
     enum Type {
       UNDEFINED = 0;
@@ -146,6 +153,7 @@ message PeerEndpoint {
       NON_VALIDATOR = 2;
     }
     Type type = 3;
+    //加密的ID
     bytes pkiID = 4;
 }
 
@@ -157,8 +165,11 @@ message PeersAddresses {
     repeated string addresses = 1;
 }
 
+//HelloMessage 用于发现协议，当节点启动如果配置了CORE_PEER_DISCOVERY_POOTNODE则发送HelloMessage
 message HelloMessage {
+    //节点信息
   PeerEndpoint peerEndpoint = 1;
+    //区块链信息
   BlockchainInfo blockchainInfo = 2;
 }
 
@@ -188,6 +199,7 @@ message Message {
     }
     Type type = 1;
     google.protobuf.Timestamp timestamp = 2;
+    //根据Type playload 会不同，如type 为CHAIN_TRANSACTION 则playload为HelloMessage
     bytes payload = 3;
     bytes signature = 4;
 }
