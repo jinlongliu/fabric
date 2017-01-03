@@ -71,6 +71,7 @@ message Unregister {
 //Event is used by
 //  - consumers (adapters) to send Register
 //  - producer to advertise supported types and events
+// 核心结构，事件生产者、事件消费者
 message Event {
     //TODO need timestamp
 
