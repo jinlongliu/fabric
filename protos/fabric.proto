@@ -25,7 +25,7 @@ import "google/protobuf/timestamp.proto";
 // whatever format they wish for the arguments for their chaincode.
 // For example, they may wish to use JSON, XML, or a custom format.
 // TODO: Defined remaining fields.
-//如果消息为CHAIN_TRANSACTION则playload为如下对象
+//如果消息为CHAIN_TRANSACTION则payload为如下对象
 message Transaction {
     enum Type {
         UNDEFINED = 0;
@@ -178,14 +178,17 @@ message Message {
     enum Type {
         UNDEFINED = 0;
 
+        //发现消息
         DISC_HELLO = 1;
         DISC_DISCONNECT = 2;
         DISC_GET_PEERS = 3;
         DISC_PEERS = 4;
         DISC_NEWMSG = 5;
 
+        //交易消息
         CHAIN_TRANSACTION = 6;
 
+        //同步消息
         SYNC_GET_BLOCKS = 11;
         SYNC_BLOCKS = 12;
         SYNC_BLOCK_ADDED = 13;
@@ -200,7 +203,7 @@ message Message {
     }
     Type type = 1;
     google.protobuf.Timestamp timestamp = 2;
-    //根据Type playload 会不同，如type 为CHAIN_TRANSACTION 则playload为HelloMessage
+    //根据Type payload 会不同，如type 为CHAIN_TRANSACTION 则payload为HelloMessage
     bytes payload = 3;
     bytes signature = 4;
 }
@@ -230,6 +233,7 @@ message BlockState {
 // in which blocks are returned is defined by the start and end values. For
 // example, if start=3 and end=5, the order of blocks will be 3, 4, 5.
 // If start=5 and end=3, the order will be 5, 4, 3.
+// SYNC_GET_BLOCKS 的 payload
 message SyncBlockRange {
     uint64 correlationId = 1;
     uint64 start = 2;
