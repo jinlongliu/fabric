@@ -4,6 +4,7 @@ server:
 
         # limits the number of operating system threads used by the CA
         # set to negative to use the system default setting
+        # 限制CA数量
         gomaxprocs: -1
 
         # path to the OBC state directory and CA state subdirectory
@@ -11,6 +12,7 @@ server:
         cadir: ".membersrvc"
 
         # port the CA services are listening on
+        # CA服务端口
         port: ":7054"
 
         # TLS certificate and key file paths
