@@ -110,6 +110,7 @@ eca:
                 # Example2:
                 #    The 'WebAppAdmin' user below can register clients only, but none of the users registered by this user can register other users.
                 #
+                # 预载入注册用户信息
                 admin: 1 Xurw3yU9zI0l institution_a '{"registrar":{"roles":["client","peer","validator","auditor"],"delegateRoles":["client"]}}'
                 WebAppAdmin: 1 DJY27pEnl16d institution_a '{"registrar":{"roles":["client"]}}'
                 lukas: 1 NPKYL39uKbkj bank_a
