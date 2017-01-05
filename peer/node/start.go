@@ -77,6 +77,7 @@ func serve(args []string) error {
 		logger.Info("Disable loading validity system chaincode")
 
 		viper.Set("peer.validator.enabled", "true")
+		// 开发模式默认共识机制采用noops
 		viper.Set("peer.validator.consensus", "noops")
 		viper.Set("chaincode.mode", chaincode.DevModeUserRunsChaincode)
 
