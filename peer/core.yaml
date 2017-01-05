@@ -134,6 +134,7 @@ peer:
         consensus:
             # Consensus plugin to use. The value is the name of the plugin, e.g. pbft, noops ( this value is case-insensitive)
             # if the given value is not recognized, we will default to noops
+            # 此处定义了共识机制使用的插件，大小写不敏感
             plugin: noops
 
             # total number of consensus messages which will be buffered per connection before delivery is rejected
