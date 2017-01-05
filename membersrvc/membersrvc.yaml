@@ -29,6 +29,7 @@ security:
     # Either SHA2 or SHA3 (note: must be the exact same value as specified in the core.yaml file)
     hashAlgorithm: SHA3
     serverhostoverride:
+    # TLS相关配置，设置为true为ECA,ACA,TLSCA,TCA和ACA client之间启用TLS
     tls_enabled: false
 
     client:
