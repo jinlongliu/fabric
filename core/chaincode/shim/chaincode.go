@@ -458,6 +458,7 @@ func (stub *ChaincodeStub) CreateTable(name string, columnDefinitions []*ColumnD
 	}
 
 	table := &Table{name, columnDefinitions}
+	// 虽然是DB结构但是是通过protobuf编排后放入key-value
 	tableBytes, err := proto.Marshal(table)
 	if err != nil {
 		return fmt.Errorf("Error marshalling table: %s", err)
