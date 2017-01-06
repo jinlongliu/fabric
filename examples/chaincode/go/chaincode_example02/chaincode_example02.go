@@ -66,6 +66,7 @@ func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface, function string
 	fmt.Printf("Aval = %d, Bval = %d\n", Aval, Bval)
 
 	// 将状态写入账本，通过fabric提供的接入和修改账本的接口，参数值为 （key string, value []byte）
+	// 此chaincode采用了key-value存储方式，fabric支持结构化数据存储放置，依然通过ChaincodeStubInterface调用
 	// Write the state to the ledger
 	err = stub.PutState(A, []byte(strconv.Itoa(Aval)))
 	if err != nil {
