@@ -81,6 +81,7 @@ func (t *SimpleChaincode) Query(stub shim.ChaincodeStubInterface, function strin
 	}
 	fmt.Printf("Aval = %d\n", Aval)
 
+	// 试图在查询中更改state，不合法
 	// Write the state to the ledger - this put is illegal within Run
 	err = stub.PutState(A, []byte(strconv.Itoa(Aval)))
 	if err != nil {
