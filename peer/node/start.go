@@ -76,6 +76,7 @@ func serve(args []string) error {
 		logger.Info("Set consensus to NOOPS and user starts chaincode")
 		logger.Info("Disable loading validity system chaincode")
 
+		// 节点验证开启
 		viper.Set("peer.validator.enabled", "true")
 		// 开发模式默认共识机制采用noops
 		viper.Set("peer.validator.consensus", "noops")
@@ -93,6 +94,8 @@ func serve(args []string) error {
 		return err
 	}
 
+	// 配置文件core.yaml中的配置
+	// peer service端口7051
 	listenAddr := viper.GetString("peer.listenAddress")
 
 	if "" == listenAddr {
@@ -105,6 +108,8 @@ func serve(args []string) error {
 		grpclog.Fatalf("Failed to listen: %v", err)
 	}
 
+	// 创建事件交换服务
+	// ehubLis 7053 注册了BLOCK，CHAINCODE，REJECTION，REGISTER
 	ehubLis, ehubGrpcServer, err := createEventHubServer()
 	if err != nil {
 		grpclog.Fatalf("Failed to create ehub server: %v", err)
@@ -124,7 +129,9 @@ func serve(args []string) error {
 	db.Start()
 
 	var opts []grpc.ServerOption
+	// 如果TLS启用，读取证书文件，在docker-compose.yml中CORE_SECURITY_ENABLED=true
 	if comm.TLSEnabled() {
+		// core.yaml中定义了了访问membersrvc的接口  localhost:7054
 		creds, err := credentials.NewServerTLSFromFile(viper.GetString("peer.tls.cert.file"),
 			viper.GetString("peer.tls.key.file"))
 
@@ -134,6 +141,7 @@ func serve(args []string) error {
 		opts = []grpc.ServerOption{grpc.Creds(creds)}
 	}
 
+	// 获取gRPC服务器实例
 	grpcServer := grpc.NewServer(opts...)
 
 	secHelper, err := getSecHelper()
@@ -150,8 +158,10 @@ func serve(args []string) error {
 	var peerServer *peer.Impl
 
 	// Create the peerServer
+	// 如果开启验证则载入共识机制插件，未开启则不加载，默认开启加载noops共识机制
 	if peer.ValidatorEnabled() {
 		logger.Debug("Running as validating peer - making genesis block if needed")
+		// 生成创世块
 		makeGenesisError := genesis.MakeGenesis()
 		if makeGenesisError != nil {
 			return makeGenesisError
@@ -172,12 +182,15 @@ func serve(args []string) error {
 	}
 
 	// Register the Peer server
+	// 在gRPC服务器中注册peer服务
 	pb.RegisterPeerServer(grpcServer, peerServer)
 
 	// Register the Admin server
+	// 注册Admin服务器端
 	pb.RegisterAdminServer(grpcServer, core.NewAdminServer())
 
 	// Register Devops server
+	// 注册Devops服务器
 	serverDevops := core.NewDevopsServer(peerServer)
 	pb.RegisterDevopsServer(grpcServer, serverDevops)
 
@@ -191,6 +204,7 @@ func serve(args []string) error {
 	pb.RegisterOpenchainServer(grpcServer, serverOpenchain)
 
 	// Create and register the REST service if configured
+	// 如果开启REST则注册该服务器
 	if viper.GetBool("rest.enabled") {
 		go rest.StartOpenchainRESTServer(serverOpenchain, serverDevops)
 	}
@@ -276,6 +290,7 @@ func createEventHubServer() (net.Listener, *grpc.Server, error) {
 	var grpcServer *grpc.Server
 	var err error
 	if peer.ValidatorEnabled() {
+		// 7053端口事件验证地址
 		lis, err = net.Listen("tcp", viper.GetString("peer.validator.events.address"))
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to listen: %v", err)
@@ -283,6 +298,7 @@ func createEventHubServer() (net.Listener, *grpc.Server, error) {
 
 		//TODO - do we need different SSL material for events ?
 		var opts []grpc.ServerOption
+		// TLS 默认关闭，如果开启会使用testdata目录下的pem和key
 		if comm.TLSEnabled() {
 			creds, err := credentials.NewServerTLSFromFile(
 				viper.GetString("peer.tls.cert.file"),
@@ -294,11 +310,13 @@ func createEventHubServer() (net.Listener, *grpc.Server, error) {
 			opts = []grpc.ServerOption{grpc.Creds(creds)}
 		}
 
+		// 启动gRPC服务器实例
 		grpcServer = grpc.NewServer(opts...)
 		ehServer := producer.NewEventsServer(
 			uint(viper.GetInt("peer.validator.events.buffersize")),
 			viper.GetInt("peer.validator.events.timeout"))
 
+		// 在服务器中注册服务
 		pb.RegisterEventsServer(grpcServer, ehServer)
 	}
 	return lis, grpcServer, err
