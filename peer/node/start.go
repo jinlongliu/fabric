@@ -156,6 +156,7 @@ func serve(args []string) error {
 		return secHelper
 	}
 
+	// 注册链码支持
 	registerChaincodeSupport(chaincode.DefaultChain, grpcServer, secHelper)
 
 	var peerServer *peer.Impl

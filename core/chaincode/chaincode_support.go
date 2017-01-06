@@ -109,6 +109,7 @@ func NewChaincodeSupport(chainname ChainName, getPeerEndpoint func() (*pb.PeerEn
 	} else {
 		s.peerAddress = peerEndpoint.Address
 	}
+	// peer service 供chaincode 在端口7051
 	chaincodeLogger.Infof("Chaincode support using peerAddress: %s\n", s.peerAddress)
 	//peerAddress = viper.GetString("peer.address")
 	if s.peerAddress == "" {
