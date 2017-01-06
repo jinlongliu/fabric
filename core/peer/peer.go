@@ -271,6 +271,7 @@ func NewPeerWithEngine(secHelperFunc func() crypto.Peer, engFactory EngineFactor
 		return nil, errors.New("Cannot supply nil handler factory")
 	}
 
+	// 进行节点发现
 	peer.chatWithSomePeers(peerNodes)
 	return peer, nil
 
@@ -551,6 +552,7 @@ func (p *Impl) chatWithSomePeers(addresses []string) {
 	p.reconnectOnce.Do(func() {
 		go p.ensureConnected()
 	})
+	// rootnode 未配置，把当前节点作为网络第一个节点
 	if len(addresses) == 0 {
 		peerLogger.Debug("Starting up the first peer of a new network")
 		return // nothing to do
@@ -784,6 +786,7 @@ func (p *Impl) signMessageMutating(msg *pb.Message) error {
 
 // initDiscovery load the addresses from the discovery list previously saved to disk and adds them to the current discovery list
 func (p *Impl) initDiscovery() []string {
+	// 初始化发现协议
 	p.discHelper = discovery.NewDiscoveryImpl()
 	p.discPersist = viper.GetBool("peer.discovery.persist")
 	if !p.discPersist {
@@ -798,6 +801,7 @@ func (p *Impl) initDiscovery() []string {
 	}
 	peerLogger.Debugf("Retrieved discovery list from disk: %v", addresses)
 	// parse the config file, ENV flags, etc.
+	// 解析配置文件，环境变量等
 	rootNodes := strings.Split(viper.GetString("peer.discovery.rootnode"), ",")
 	if !(len(rootNodes) == 1 && strings.Compare(rootNodes[0], "") == 0) {
 		addresses = append(rootNodes, p.discHelper.GetAllNodes()...)
