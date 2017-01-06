@@ -129,6 +129,7 @@ peer:
     # Validator defines whether this peer is a validating peer or not, and if
     # it is enabled, what consensus plugin to load
     validator:
+        # 配置是否是验证节点如果是加载共识机制插件，默认采用noops
         enabled: true
 
         consensus:
