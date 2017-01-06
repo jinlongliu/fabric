@@ -38,6 +38,7 @@ func MakeGenesis() error {
 		}
 
 		if ledger.GetBlockchainSize() == 0 {
+			// 如果区块数为0，生成创世块
 			genesisLogger.Info("Creating genesis block.")
 			if makeGenesisError = ledger.BeginTxBatch(0); makeGenesisError == nil {
 				makeGenesisError = ledger.CommitTxBatch(0, nil, nil, nil)
