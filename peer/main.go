@@ -70,6 +70,7 @@ func main() {
 	// For environment variables.
 	viper.SetEnvPrefix(cmdRoot)
 	viper.AutomaticEnv()
+	// 将“_”替换为“.”
 	replacer := strings.NewReplacer(".", "_")
 	viper.SetEnvKeyReplacer(replacer)
 
@@ -83,6 +84,7 @@ func main() {
 	testCoverProfile := ""
 	mainFlags.StringVarP(&testCoverProfile, "test.coverprofile", "", "coverage.cov", "Done")
 
+	// 设置配置文件路径，环境变量的PEER_CFG_PATH，当前路径，Golang源码包peer内
 	var alternativeCfgPath = os.Getenv("PEER_CFG_PATH")
 	if alternativeCfgPath != "" {
 		logger.Infof("User defined config file path: %s", alternativeCfgPath)
@@ -97,6 +99,7 @@ func main() {
 		}
 	}
 
+	// 配置文件名称core.yaml
 	// Now set the configuration file.
 	viper.SetConfigName(cmdRoot) // Name of config file (without extension)
 
@@ -105,6 +108,7 @@ func main() {
 		panic(fmt.Errorf("Fatal error when reading %s config file: %s\n", cmdRoot, err))
 	}
 
+	// 命令初始化
 	mainCmd.AddCommand(version.Cmd())
 	mainCmd.AddCommand(node.Cmd())
 	mainCmd.AddCommand(network.Cmd())
