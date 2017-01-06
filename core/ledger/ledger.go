@@ -90,6 +90,7 @@ var once sync.Once
 
 // GetLedger - gives a reference to a 'singleton' ledger
 func GetLedger() (*Ledger, error) {
+	// 新账本
 	once.Do(func() {
 		ledger, ledgerError = GetNewLedger()
 	})

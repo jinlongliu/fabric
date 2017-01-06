@@ -31,6 +31,7 @@ var once sync.Once
 // MakeGenesis creates the genesis block and adds it to the blockchain.
 func MakeGenesis() error {
 	once.Do(func() {
+		// 获取账本
 		ledger, err := ledger.GetLedger()
 		if err != nil {
 			makeGenesisError = err

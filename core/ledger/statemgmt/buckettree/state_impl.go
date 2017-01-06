@@ -105,6 +105,7 @@ func (stateImpl *StateImpl) ClearWorkingSet(changesPersisted bool) {
 
 // ComputeCryptoHash - method implementation for interface 'statemgmt.HashableState'
 func (stateImpl *StateImpl) ComputeCryptoHash() ([]byte, error) {
+	// 计算加密哈希
 	logger.Debug("Enter - ComputeCryptoHash()")
 	if stateImpl.recomputeCryptoHash {
 		logger.Debug("Recomputing crypto-hash...")

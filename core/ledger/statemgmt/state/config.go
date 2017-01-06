@@ -34,6 +34,7 @@ func initConfig() {
 }
 
 func loadConfig() {
+	// 载入状态配置
 	logger.Info("Loading configurations...")
 	stateImplName = stateImplType(viper.GetString("ledger.state.dataStructure.name"))
 	stateImplConfigs = viper.GetStringMap("ledger.state.dataStructure.configs")
