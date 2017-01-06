@@ -148,6 +148,7 @@ func getDBPath() string {
 
 // Open open underlying rocksdb
 func (openchainDB *OpenchainDB) open() {
+	// 判断/var/hyperledger/production/db目录是否存在
 	dbPath := getDBPath()
 	missing, err := dirMissingOrEmpty(dbPath)
 	if err != nil {
@@ -155,6 +156,7 @@ func (openchainDB *OpenchainDB) open() {
 	}
 	dbLogger.Debugf("Is db path [%s] empty [%t]", dbPath, missing)
 
+	// 不存在则创建
 	if missing {
 		err = os.MkdirAll(path.Dir(dbPath), 0755)
 		if err != nil {

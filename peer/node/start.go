@@ -115,8 +115,10 @@ func serve(args []string) error {
 		grpclog.Fatalf("Failed to create ehub server: %v", err)
 	}
 
+	// 输出安全设置值
 	logger.Infof("Security enabled status: %t", core.SecurityEnabled())
 	if viper.GetBool("security.privacy") {
+		// 隐私启用状态
 		if core.SecurityEnabled() {
 			logger.Infof("Privacy enabled status: true")
 		} else {
