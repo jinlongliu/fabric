@@ -69,6 +69,7 @@ func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface, function stri
 		return nil, errors.New("Incorrect number of arguments. Expecting 2")
 	}
 
+	// 基于URL的chaincode调用，而非基于hashcode这样修改后代码无需变动
 	chaincodeURL := args[0] // Expecting "github.com/hyperledger/fabric/core/example/chaincode/chaincode_example02"
 	sum = args[1]
 
