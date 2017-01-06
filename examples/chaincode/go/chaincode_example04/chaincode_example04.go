@@ -85,6 +85,7 @@ func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface, function stri
 		return nil, nil
 	}
 
+	// 调用另外的chaincode，根据其它chaincode的hashcode调用，如果发生变化则调用失败
 	// Get the chaincode to call from the ledger
 	chainCodeToCall := t.GetChaincodeToCall()
 
