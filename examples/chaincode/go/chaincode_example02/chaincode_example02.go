@@ -31,9 +31,11 @@ import (
 )
 
 // SimpleChaincode example simple Chaincode implementation
+// chaincode 开发实现Chaincode接口 core/chaincode/shim/interfaces.go
 type SimpleChaincode struct {
 }
 
+// 初始化，在chaincode部署时启动时调用，shim向验证节点注册，验证节点回应注册，并通过shim调用Init实现初始化
 func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
 	var A, B string    // Entities
 	var Aval, Bval int // Asset holdings
@@ -43,19 +45,27 @@ func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface, function string
 		return nil, errors.New("Incorrect number of arguments. Expecting 4")
 	}
 
+	// 初始化智能合约
+	// peer chaincode deploy -u jim -n mycc -c '{"Args": ["init", "a","100", "b", "200"]}'
+	// 参数顺序解析为   a，100，b，200
 	// Initialize the chaincode
+	// A账户名a
 	A = args[0]
+	// A账户初始余额100
 	Aval, err = strconv.Atoi(args[1])
 	if err != nil {
 		return nil, errors.New("Expecting integer value for asset holding")
 	}
+	// B账户账户名b
 	B = args[2]
+	// B账户初始余额200
 	Bval, err = strconv.Atoi(args[3])
 	if err != nil {
 		return nil, errors.New("Expecting integer value for asset holding")
 	}
 	fmt.Printf("Aval = %d, Bval = %d\n", Aval, Bval)
 
+	// 将状态写入账本，通过fabric提供的接入和修改账本的接口，参数值为 （key string, value []byte）
 	// Write the state to the ledger
 	err = stub.PutState(A, []byte(strconv.Itoa(Aval)))
 	if err != nil {
@@ -70,13 +80,17 @@ func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface, function string
 	return nil, nil
 }
 
+// 当validating peer处理交易是，调用该方法进行交易处理
+// peer chaincode invoke -u jim -l golang -n mycc -c '{"Args": ["invoke", "a", "b", "10"]}'
 // Transaction makes payment of X units from A to B
 func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
+	// 删除账户
 	if function == "delete" {
 		// Deletes an entity from its state
 		return t.delete(stub, args)
 	}
 
+	// 解析发生转账的账户
 	var A, B string    // Entities
 	var Aval, Bval int // Asset holdings
 	var X int          // Transaction value
@@ -110,6 +124,7 @@ func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface, function stri
 	Bval, _ = strconv.Atoi(string(Bvalbytes))
 
 	// Perform the execution
+	// 获取转账金额
 	X, err = strconv.Atoi(args[2])
 	if err != nil {
 		return nil, errors.New("Invalid transaction amount, expecting a integer value")
@@ -119,6 +134,7 @@ func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface, function stri
 	fmt.Printf("Aval = %d, Bval = %d\n", Aval, Bval)
 
 	// Write the state back to the ledger
+	// 交易后的账户金额写入账本
 	err = stub.PutState(A, []byte(strconv.Itoa(Aval)))
 	if err != nil {
 		return nil, err
@@ -150,6 +166,8 @@ func (t *SimpleChaincode) delete(stub shim.ChaincodeStubInterface, args []string
 }
 
 // Query callback representing the query of a chaincode
+// peer chaincode query -u jim -l golang -n mycc -c '{"Args": ["query", "b"]}'
+// 查询方法实现
 func (t *SimpleChaincode) Query(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
 	if function != "query" {
 		return nil, errors.New("Invalid query function name. Expecting \"query\"")
