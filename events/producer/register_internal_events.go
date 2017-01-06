@@ -49,6 +49,9 @@ func getMessageType(e *pb.Event) pb.EventType {
 
 //should be called at init time to register supported internal events
 func addInternalEventTypes() {
+	// 在控制台会有个日志输出，eventhub_producer] AddEventType -> DEBU 007 registering BLOCK
+	// AddEventType -> DEBU 008 registering CHAINCODE
+	// ...
 	AddEventType(pb.EventType_BLOCK)
 	AddEventType(pb.EventType_CHAINCODE)
 	AddEventType(pb.EventType_REJECTION)
