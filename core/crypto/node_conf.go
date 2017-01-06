@@ -33,6 +33,7 @@ func (node *nodeImpl) initConfiguration(name string) (err error) {
 		return
 	}
 
+	//数据存储于/var/hyperledger/production/crypto/validator/
 	node.Debugf("Data will be stored at [%s]", node.conf.configurationPath)
 
 	return

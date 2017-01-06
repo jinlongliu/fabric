@@ -53,6 +53,7 @@ func RegisterValidator(name string, pwd []byte, enrollID, enrollPWD string) erro
 	}
 
 	validator := newValidator()
+	// 验证节点注册登记
 	if err := validator.register(name, pwd, enrollID, enrollPWD, nil); err != nil {
 		if err != utils.ErrAlreadyRegistered && err != utils.ErrAlreadyInitialized {
 			log.Errorf("Failed registering validator [%s] with name [%s] [%s].", enrollID, name, err)

@@ -28,6 +28,7 @@ import (
 )
 
 func (node *nodeImpl) initTLS() error {
+	// 初始化TLS
 	node.Debug("Initiliazing TLS...")
 
 	if node.conf.isTLSEnabled() {
@@ -47,6 +48,7 @@ func (node *nodeImpl) initTLS() error {
 		}
 		node.Debug("Initiliazing TLS...Done")
 	} else {
+		// TLS未启用
 		node.Debug("Initiliazing TLS...Disabled!!!")
 	}
 

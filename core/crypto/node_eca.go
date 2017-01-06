@@ -47,12 +47,14 @@ func (node *nodeImpl) retrieveECACertsChain(userID string) error {
 	}
 
 	// Retrieve ECA certificate and verify it
+	// 获取ECA证书ecaCertRaw
 	ecaCertRaw, err := node.getECACertificate()
 	if err != nil {
 		node.Errorf("Failed getting ECA certificate [%s].", err.Error())
 
 		return err
 	}
+	// 打印输出
 	node.Debugf("ECA certificate [% x].", ecaCertRaw)
 
 	// TODO: Test ECA cert againt root CA
@@ -69,6 +71,7 @@ func (node *nodeImpl) retrieveECACertsChain(userID string) error {
 	node.ecaCertPool.AddCert(x509ECACert)
 
 	// Store ECA cert
+	// 存储ECA证书
 	node.Debugf("Storing ECA certificate for [%s]...", userID)
 
 	if err := node.ks.storeCert(node.conf.getECACertsChainFilename(), ecaCertRaw); err != nil {
@@ -84,6 +87,7 @@ func (node *nodeImpl) retrieveEnrollmentData(enrollID, enrollPWD string) error {
 		return nil
 	}
 
+	//从ECA获取登记证书
 	key, enrollCertRaw, enrollChainKey, err := node.getEnrollmentCertificateFromECA(enrollID, enrollPWD)
 	if err != nil {
 		node.Errorf("Failed getting enrollment certificate [id=%s]: [%s]", enrollID, err)
@@ -94,6 +98,7 @@ func (node *nodeImpl) retrieveEnrollmentData(enrollID, enrollPWD string) error {
 
 	node.Debugf("Storing enrollment data for user [%s]...", enrollID)
 
+	// 存储登记ID、私钥，登记证书
 	// Store enrollment id
 	err = ioutil.WriteFile(node.conf.getEnrollmentIDPath(), []byte(enrollID), 0700)
 	if err != nil {
@@ -260,6 +265,7 @@ func (node *nodeImpl) loadECACertsChain() error {
 }
 
 func (node *nodeImpl) getECAClient() (*grpc.ClientConn, membersrvc.ECAPClient, error) {
+	// 获取ECAClient
 	node.Debug("Getting ECA client...")
 
 	conn, err := node.getClientConn(node.conf.getECAPAddr(), node.conf.getECAServerName())
@@ -276,6 +282,7 @@ func (node *nodeImpl) getECAClient() (*grpc.ClientConn, membersrvc.ECAPClient, e
 
 func (node *nodeImpl) callECAReadCACertificate(ctx context.Context, opts ...grpc.CallOption) (*membersrvc.Cert, error) {
 	// Get an ECA Client
+	// 获取ECA client
 	sock, ecaP, err := node.getECAClient()
 	defer sock.Close()
 
@@ -423,6 +430,7 @@ func (node *nodeImpl) getEnrollmentCertificateFromECA(id, pw string) (interface{
 	// Verify response
 
 	// Verify cert for signing
+	// 验证证书签名
 	node.Debugf("Enrollment certificate for signing [% x]", primitives.Hash(resp.Certs.Sign))
 
 	x509SignCert, err := primitives.DERToX509Certificate(resp.Certs.Sign)

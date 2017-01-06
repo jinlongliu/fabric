@@ -184,7 +184,7 @@ func (peer *peerImpl) GetTransactionBinding(tx *obc.Transaction) ([]byte, error)
 }
 
 // Private methods
-
+// 节点注册
 func (peer *peerImpl) register(eType NodeType, name string, pwd []byte, enrollID, enrollPWD string, regFunc registerFunc) error {
 
 	if err := peer.nodeImpl.register(eType, name, pwd, enrollID, enrollPWD, regFunc); err != nil {

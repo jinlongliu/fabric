@@ -128,12 +128,13 @@ func serve(args []string) error {
 		logger.Infof("Privacy enabled status: false")
 	}
 
+	//数据库启动，打开/var/hyperledger/production/db目录
 	db.Start()
 
 	var opts []grpc.ServerOption
 	// 如果TLS启用，读取证书文件，在docker-compose.yml中CORE_SECURITY_ENABLED=true
 	if comm.TLSEnabled() {
-		// core.yaml中定义了了访问membersrvc的接口  localhost:7054
+		// core.yaml中定义了了访问membersrvc的接口  localhost:7054, 获取配置
 		creds, err := credentials.NewServerTLSFromFile(viper.GetString("peer.tls.cert.file"),
 			viper.GetString("peer.tls.key.file"))
 
@@ -371,6 +372,9 @@ func getSecHelper() (crypto.Peer, error) {
 	var err error
 	once.Do(func() {
 		if core.SecurityEnabled() {
+			// 在docker-compose.yml中定义了，如果未定义在core.yml中查找
+			// CORE_SECURITY_ENROLLID=test_vp0
+			// CORE_SECURITY_ENROLLSECRET=MwYpmSRjupbT
 			enrollID := viper.GetString("security.enrollID")
 			enrollSecret := viper.GetString("security.enrollSecret")
 			if peer.ValidatorEnabled() {

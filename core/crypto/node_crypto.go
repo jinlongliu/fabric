@@ -34,24 +34,28 @@ func (node *nodeImpl) registerCryptoEngine(enrollID, enrollPWD string) error {
 		return err
 	}
 
+	// 从ECA获取Ecerts
 	if err := node.retrieveECACertsChain(enrollID); err != nil {
 		node.Errorf("Failed retrieving ECA certs chain [%s].", err.Error())
 
 		return err
 	}
 
+	// 从TCA请求Tcerts
 	if err := node.retrieveTCACertsChain(enrollID); err != nil {
 		node.Errorf("Failed retrieving ECA certs chain [%s].", err.Error())
 
 		return err
 	}
 
+	// 获取登记数据
 	if err := node.retrieveEnrollmentData(enrollID, enrollPWD); err != nil {
 		node.Errorf("Failed retrieving enrollment data [%s].", err.Error())
 
 		return err
 	}
 
+	// 获取TLS证书
 	if err := node.retrieveTLSCertificate(enrollID, enrollPWD); err != nil {
 		node.Errorf("Failed retrieving enrollment data: %s", err)
 

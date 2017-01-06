@@ -100,6 +100,7 @@ func (ks *keyStore) init(node *nodeImpl, pwd []byte) error {
 		return err
 	}
 
+	// 打开Keystore
 	err = ks.openKeyStore()
 	if err != nil {
 		return err
@@ -330,6 +331,7 @@ func (ks *keyStore) close() error {
 
 func (ks *keyStore) createKeyStoreIfNotExists() error {
 	// Check keystore directory
+	// 创建KeyStore如果不存在
 	ksPath := ks.node.conf.getKeyStorePath()
 	missing, err := utils.DirMissingOrEmpty(ksPath)
 	ks.node.Debugf("Keystore path [%s] missing [%t]: [%s]", ksPath, missing, utils.ErrToString(err))
@@ -341,6 +343,7 @@ func (ks *keyStore) createKeyStoreIfNotExists() error {
 	}
 
 	if missing {
+		// 调用下方方法进行目录ks创建
 		err := ks.createKeyStore()
 		if err != nil {
 			ks.node.Errorf("Failed creating db At [%s]: [%s]", ks.node.conf.getKeyStoreFilePath(), err.Error())
@@ -369,6 +372,7 @@ func (ks *keyStore) createKeyStore() error {
 
 	// Create DB
 	ks.node.Debug("Open Keystore DB...")
+	// 使用sqlite3存储key
 	db, err := sql.Open("sqlite3", filepath.Join(ksPath, ks.node.conf.getKeyStoreFilename()))
 	if err != nil {
 		return err

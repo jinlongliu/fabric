@@ -1700,6 +1700,7 @@ func NewTCAPClient(cc *grpc.ClientConn) TCAPClient {
 }
 
 func (c *tCAPClient) ReadCACertificate(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Cert, error) {
+	// gRPC存根调用membersrc里的server方法 src/github.com/hyperledger/fabric/membersrvc/ca/tcap.go
 	out := new(Cert)
 	err := grpc.Invoke(ctx, "/protos.TCAP/ReadCACertificate", in, out, c.cc, opts...)
 	if err != nil {

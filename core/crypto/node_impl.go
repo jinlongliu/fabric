@@ -95,6 +95,7 @@ func (node *nodeImpl) register(eType NodeType, name string, pwd []byte, enrollID
 	// Set entity type
 	node.eType = eType
 
+	// 初始化配置
 	// Init Conf
 	if err := node.initConfiguration(name); err != nil {
 		node.Errorf("Failed initiliazing configuration [%s]: [%s].", enrollID, err)
@@ -102,6 +103,7 @@ func (node *nodeImpl) register(eType NodeType, name string, pwd []byte, enrollID
 	}
 
 	// Initialize keystore
+	// 初始化keystore
 	err := node.initKeyStore(pwd)
 	if err != nil {
 		if err == utils.ErrKeyStoreAlreadyInitialized {
@@ -119,6 +121,7 @@ func (node *nodeImpl) register(eType NodeType, name string, pwd []byte, enrollID
 		return utils.ErrAlreadyInitialized
 	}
 
+	// 节点注册，初始化加密引擎
 	err = node.nodeRegister(eType, name, pwd, enrollID, enrollPWD)
 	if err != nil {
 		return err
@@ -139,6 +142,7 @@ func (node *nodeImpl) register(eType NodeType, name string, pwd []byte, enrollID
 
 func (node *nodeImpl) nodeRegister(eType NodeType, name string, pwd []byte, enrollID, enrollPWD string) error {
 	// Register crypto engine
+	// 注册加密引擎
 	err := node.registerCryptoEngine(enrollID, enrollPWD)
 	if err != nil {
 		node.Errorf("Failed registering node crypto engine [%s].", err.Error())
