@@ -249,6 +249,7 @@ func serve(args []string) error {
 		go ehubGrpcServer.Serve(ehubLis)
 	}
 
+	// peer profile 占用端口6060
 	if viper.GetBool("peer.profile.enabled") {
 		go func() {
 			profileListenAddress := viper.GetString("peer.profile.listenAddress")
