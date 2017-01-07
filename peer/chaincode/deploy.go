@@ -44,16 +44,19 @@ var chaincodeDeployCmd = &cobra.Command{
 // (hash) is printed to STDOUT for use by subsequent chaincode-related CLI
 // commands.
 func chaincodeDeploy(cmd *cobra.Command, args []string) error {
+	// 构建chaincode详述
 	spec, err := getChaincodeSpecification(cmd)
 	if err != nil {
 		return err
 	}
 
+	// 获取devops客户端
 	devopsClient, err := common.GetDevopsClient(cmd)
 	if err != nil {
 		return fmt.Errorf("Error building %s: %s", chainFuncName, err)
 	}
 
+	// 执行部署
 	chaincodeDeploymentSpec, err := devopsClient.Deploy(context.Background(), spec)
 	if err != nil {
 		return fmt.Errorf("Error building %s: %s\n", chainFuncName, err)

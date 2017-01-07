@@ -146,6 +146,7 @@ var _ grpc.ClientConn
 const _ = grpc.SupportPackageIsVersion3
 
 // Client API for Devops service
+// 接口定义
 
 type DevopsClient interface {
 	// Log in - passed Secret object and returns Response object, where
@@ -169,6 +170,7 @@ type DevopsClient interface {
 	EXP_ExecuteWithBinding(ctx context.Context, in *ExecuteWithBinding, opts ...grpc.CallOption) (*Response, error)
 }
 
+// 接口实现
 type devopsClient struct {
 	cc *grpc.ClientConn
 }

@@ -80,6 +80,7 @@ func serve(args []string) error {
 		viper.Set("peer.validator.enabled", "true")
 		// 开发模式默认共识机制采用noops
 		viper.Set("peer.validator.consensus", "noops")
+		// 如果定义dev模式，则chaincode在命令行中运行，若为net则在容器中运行
 		viper.Set("chaincode.mode", chaincode.DevModeUserRunsChaincode)
 
 	}
@@ -194,7 +195,7 @@ func serve(args []string) error {
 	pb.RegisterAdminServer(grpcServer, core.NewAdminServer())
 
 	// Register Devops server
-	// 注册Devops服务器
+	// 注册Devops服务器,peer devops client会通过gPRC连接调用这里实现的方法
 	serverDevops := core.NewDevopsServer(peerServer)
 	pb.RegisterDevopsServer(grpcServer, serverDevops)
 

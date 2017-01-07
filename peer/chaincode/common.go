@@ -33,13 +33,16 @@ import (
 	"golang.org/x/net/context"
 )
 
+// 获取chaincode规格、详述
 func getChaincodeSpecification(cmd *cobra.Command) (*pb.ChaincodeSpec, error) {
+	// 定义一个spec
 	spec := &pb.ChaincodeSpec{}
 	if err := checkChaincodeCmdParams(cmd); err != nil {
 		return spec, err
 	}
 
 	// Build the spec
+	// chaincode输入参数
 	input := &pb.ChaincodeInput{}
 	if err := json.Unmarshal([]byte(chaincodeCtorJSON), &input); err != nil {
 		return spec, fmt.Errorf("Chaincode argument error: %s", err)
@@ -50,6 +53,7 @@ func getChaincodeSpecification(cmd *cobra.Command) (*pb.ChaincodeSpec, error) {
 		return spec, fmt.Errorf("Chaincode argument error: %s", err)
 	}
 
+	// chaincode编写语言
 	chaincodeLang = strings.ToUpper(chaincodeLang)
 	spec = &pb.ChaincodeSpec{
 		Type:        pb.ChaincodeSpec_Type(pb.ChaincodeSpec_Type_value[chaincodeLang]),
@@ -58,6 +62,7 @@ func getChaincodeSpecification(cmd *cobra.Command) (*pb.ChaincodeSpec, error) {
 		Attributes:  attributes,
 	}
 	// If security is enabled, add client login token
+	// 如果安全开启，则要求验证
 	if core.SecurityEnabled() {
 		if chaincodeUsr == common.UndefinedParamValue {
 			return spec, errors.New("Must supply username for chaincode when security is enabled")
@@ -68,6 +73,7 @@ func getChaincodeSpecification(cmd *cobra.Command) (*pb.ChaincodeSpec, error) {
 		localStore := util.GetCliFilePath()
 
 		// Check if the user is logged in before sending transaction
+		// 在发送交易之前，检测用户是否登录。 部署chaincode也属于一种交易
 		if _, err := os.Stat(localStore + "loginToken_" + chaincodeUsr); err == nil {
 			logger.Infof("Local user '%s' is already logged in. Retrieving login token.\n", chaincodeUsr)
 
@@ -81,6 +87,7 @@ func getChaincodeSpecification(cmd *cobra.Command) (*pb.ChaincodeSpec, error) {
 			spec.SecureContext = string(token)
 
 			// If privacy is enabled, mark chaincode as confidential
+			// 如果安全是开启的，标记该chaincode为机密的
 			if viper.GetBool("security.privacy") {
 				logger.Info("Set confidentiality level to CONFIDENTIAL.\n")
 				spec.ConfidentialityLevel = pb.ConfidentialityLevel_CONFIDENTIAL

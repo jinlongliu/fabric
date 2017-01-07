@@ -123,9 +123,11 @@ func (*Devops) Build(context context.Context, spec *pb.ChaincodeSpec) (*pb.Chain
 
 // get chaincode bytes
 func (*Devops) getChaincodeBytes(context context.Context, spec *pb.ChaincodeSpec) (*pb.ChaincodeDeploymentSpec, error) {
+	// chaincode运行模式 dev 本地命令行运行  net 在docker容器中运行
 	mode := viper.GetString("chaincode.mode")
 	var codePackageBytes []byte
 	if mode != chaincode.DevModeUserRunsChaincode {
+		// 如果chaincode.mode 非dev模式，而是net模式
 		devopsLogger.Debugf("Received build request for chaincode spec: %v", spec)
 		var err error
 		if err = CheckSpec(spec); err != nil {
@@ -146,6 +148,7 @@ func (*Devops) getChaincodeBytes(context context.Context, spec *pb.ChaincodeSpec
 // Deploy deploys the supplied chaincode image to the validators through a transaction
 func (d *Devops) Deploy(ctx context.Context, spec *pb.ChaincodeSpec) (*pb.ChaincodeDeploymentSpec, error) {
 	// get the deployment spec
+	// 部署时先获取chaincode部署详情
 	chaincodeDeploymentSpec, err := d.getChaincodeBytes(ctx, spec)
 
 	if err != nil {
