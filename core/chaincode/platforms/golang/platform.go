@@ -72,11 +72,14 @@ func (goPlatform *Platform) ValidateSpec(spec *pb.ChaincodeSpec) error {
 func (goPlatform *Platform) WritePackage(spec *pb.ChaincodeSpec, tw *tar.Writer) error {
 
 	var err error
+	// chaincode id name 为chaincode spec的hash
+	// 根据路径，由chaincode源码生成hashcode作为chaincodeId
 	spec.ChaincodeID.Name, err = generateHashcode(spec, tw)
 	if err != nil {
 		return err
 	}
 
+	// 加入文件tar压缩包
 	err = writeChaincodePackage(spec, tw)
 	if err != nil {
 		return err

@@ -69,6 +69,7 @@ func writeChaincodePackage(spec *pb.ChaincodeSpec, tw *tar.Writer) error {
 		newRunLine = fmt.Sprintf("%s\nCOPY src/certs/cert.pem %s", newRunLine, viper.GetString("peer.tls.cert.file"))
 	}
 
+	// 结合core.yml 中docker file默认配置再加上上述新行，构成新的docker file
 	dockerFileContents := fmt.Sprintf("%s\n%s", cutil.GetDockerfileFromConfig("chaincode.golang.Dockerfile"), newRunLine)
 	dockerFileSize := int64(len([]byte(dockerFileContents)))
 
@@ -76,6 +77,7 @@ func writeChaincodePackage(spec *pb.ChaincodeSpec, tw *tar.Writer) error {
 	var zeroTime time.Time
 	tw.WriteHeader(&tar.Header{Name: "Dockerfile", Size: dockerFileSize, ModTime: zeroTime, AccessTime: zeroTime, ChangeTime: zeroTime})
 	tw.Write([]byte(dockerFileContents))
+	// 将urlLocation所有压缩写入tw
 	err := cutil.WriteGopathSrc(tw, urlLocation)
 	if err != nil {
 		return fmt.Errorf("Error writing Chaincode package contents: %s", err)

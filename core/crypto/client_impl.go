@@ -37,6 +37,7 @@ type clientImpl struct {
 }
 
 // NewChaincodeDeployTransaction is used to deploy chaincode.
+// 部署交易，因为启用安全，所以要求tCerts
 func (client *clientImpl) NewChaincodeDeployTransaction(chaincodeDeploymentSpec *obc.ChaincodeDeploymentSpec, uuid string, attributes ...string) (*obc.Transaction, error) {
 	// Verify that the client is initialized
 	if !client.IsInitialized() {

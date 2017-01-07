@@ -278,6 +278,7 @@ func (p *Buffer) Marshal(pb Message) error {
 		return ErrNil
 	}
 	if err == nil {
+		// 编码
 		err = p.enc_struct(GetProperties(t.Elem()), base)
 	}
 

@@ -197,6 +197,7 @@ func getCodeFromHTTP(path string) (codegopath string, err error) {
 	return
 }
 
+// 从文件系统获取GOPATH
 func getCodeFromFS(path string) (codegopath string, err error) {
 	logger.Debugf("getCodeFromFS %s", path)
 	gopath := os.Getenv("GOPATH")
@@ -243,6 +244,7 @@ func generateHashcode(spec *pb.ChaincodeSpec, tw *tar.Writer) (string, error) {
 		}
 	}()
 
+	// chaincode路径，可以为http:// 或者https:// 或者 $GOPATH/src下某个目录
 	path := chaincodeID.Path
 
 	var err error
@@ -274,6 +276,7 @@ func generateHashcode(spec *pb.ChaincodeSpec, tw *tar.Writer) (string, error) {
 	}
 	hash := util.GenerateHashFromSignature(actualcodepath, ctorbytes)
 
+	// 针对$GOPATH/src下某个目录的所有文件进行哈希，actualcodepath 为peer chaincode deploy 中-p指定参数值
 	hash, err = hashFilesInDir(filepath.Join(codegopath, "src"), actualcodepath, hash, tw)
 	if err != nil {
 		return "", fmt.Errorf("Could not get hashcode for %s - %s\n", path, err)

@@ -126,6 +126,7 @@ func (*Devops) getChaincodeBytes(context context.Context, spec *pb.ChaincodeSpec
 	// chaincode运行模式 dev 本地命令行运行  net 在docker容器中运行
 	mode := viper.GetString("chaincode.mode")
 	var codePackageBytes []byte
+	// 如下为非开发模式
 	if mode != chaincode.DevModeUserRunsChaincode {
 		// 如果chaincode.mode 非dev模式，而是net模式
 		devopsLogger.Debugf("Received build request for chaincode spec: %v", spec)
@@ -134,6 +135,7 @@ func (*Devops) getChaincodeBytes(context context.Context, spec *pb.ChaincodeSpec
 			return nil, err
 		}
 
+		// 获取chaincode程序包数据
 		codePackageBytes, err = container.GetChaincodePackageBytes(spec)
 		if err != nil {
 			err = fmt.Errorf("Error getting chaincode package bytes: %s", err)
@@ -141,6 +143,8 @@ func (*Devops) getChaincodeBytes(context context.Context, spec *pb.ChaincodeSpec
 			return nil, err
 		}
 	}
+	// chaincode部署详情包含：ChaincodeSpec，CodePackage
+	// 如果为开发模式则codePackageBytes为空，非开发模式则会填充codePackageBytes
 	chaincodeDeploymentSpec := &pb.ChaincodeDeploymentSpec{ChaincodeSpec: spec, CodePackage: codePackageBytes}
 	return chaincodeDeploymentSpec, nil
 }
@@ -148,7 +152,7 @@ func (*Devops) getChaincodeBytes(context context.Context, spec *pb.ChaincodeSpec
 // Deploy deploys the supplied chaincode image to the validators through a transaction
 func (d *Devops) Deploy(ctx context.Context, spec *pb.ChaincodeSpec) (*pb.ChaincodeDeploymentSpec, error) {
 	// get the deployment spec
-	// 部署时先获取chaincode部署详情
+	// 部署时先获取chaincode部署详情，包含chaincode二进制字节，这个函数内会判断chaincode.mode
 	chaincodeDeploymentSpec, err := d.getChaincodeBytes(ctx, spec)
 
 	if err != nil {
@@ -157,6 +161,8 @@ func (d *Devops) Deploy(ctx context.Context, spec *pb.ChaincodeSpec) (*pb.Chainc
 	}
 
 	// Now create the Transactions message and send to Peer.
+	// 创建交易信息发送给节点
+	// chaincode id name作为交易id
 
 	transID := chaincodeDeploymentSpec.ChaincodeSpec.ChaincodeID.Name
 
@@ -164,6 +170,7 @@ func (d *Devops) Deploy(ctx context.Context, spec *pb.ChaincodeSpec) (*pb.Chainc
 	var sec crypto.Client
 
 	if peer.SecurityEnabled() {
+		// 安全开启
 		if devopsLogger.IsEnabledFor(logging.DEBUG) {
 			devopsLogger.Debugf("Initializing secure devops using context %s", spec.SecureContext)
 		}

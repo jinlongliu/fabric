@@ -504,6 +504,7 @@ func (p *Impl) SendTransactionsToPeer(peerAddress string, transaction *pb.Transa
 func (p *Impl) sendTransactionsToLocalEngine(transaction *pb.Transaction) *pb.Response {
 
 	peerLogger.Debugf("Marshalling transaction %s to send to local engine", transaction.Type)
+	// 交易再次编码
 	data, err := proto.Marshal(transaction)
 	if err != nil {
 		return &pb.Response{Status: pb.Response_FAILURE, Msg: []byte(fmt.Sprintf("Error sending transaction to local engine: %s", err))}
@@ -625,6 +626,7 @@ func (p *Impl) handleChat(ctx context.Context, stream ChatStream, initiatedStrea
 
 //ExecuteTransaction executes transactions decides to do execute in dev or prod mode
 func (p *Impl) ExecuteTransaction(transaction *pb.Transaction) (response *pb.Response) {
+	// 本地执行或者随机抽取peer执行
 	if p.isValidator {
 		response = p.sendTransactionsToLocalEngine(transaction)
 	} else {

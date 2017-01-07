@@ -89,11 +89,14 @@ func GetChaincodePackageBytes(spec *pb.ChaincodeSpec) ([]byte, error) {
 	gw := gzip.NewWriter(inputbuf)
 	tw := tar.NewWriter(gw)
 
+	// chaincode specification type 不同语言的chaincode ： 1 Golang  2 Node 3 Car 4 Java
+	// 根据类型不同获取不同的平台
 	platform, err := platforms.Find(spec.Type)
 	if err != nil {
 		return nil, err
 	}
 
+	// 写入文件tar包
 	err = platform.WritePackage(spec, tw)
 	if err != nil {
 		return nil, err

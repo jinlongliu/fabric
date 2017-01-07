@@ -65,6 +65,7 @@ func NewTransaction(chaincodeID ChaincodeID, uuid string, function string, argum
 }
 
 // NewChaincodeDeployTransaction is used to deploy chaincode.
+// 部署交易，该方法不要求Tcerts
 func NewChaincodeDeployTransaction(chaincodeDeploymentSpec *ChaincodeDeploymentSpec, uuid string) (*Transaction, error) {
 	transaction := new(Transaction)
 	transaction.Type = Transaction_CHAINCODE_DEPLOY
@@ -72,6 +73,7 @@ func NewChaincodeDeployTransaction(chaincodeDeploymentSpec *ChaincodeDeploymentS
 	transaction.Timestamp = util.CreateUtcTimestamp()
 	cID := chaincodeDeploymentSpec.ChaincodeSpec.GetChaincodeID()
 	if cID != nil {
+		// 把chaincodeDeploymentSpec中明文chaincode id转化为加密
 		data, err := proto.Marshal(cID)
 		if err != nil {
 			return nil, fmt.Errorf("Could not marshal chaincode : %s", err)
@@ -82,6 +84,7 @@ func NewChaincodeDeployTransaction(chaincodeDeploymentSpec *ChaincodeDeploymentS
 	//	transaction.Function = chaincodeDeploymentSpec.ChaincodeSpec.GetCtorMsg().Function
 	//	transaction.Args = chaincodeDeploymentSpec.ChaincodeSpec.GetCtorMsg().Args
 	//}
+	// chaincode 部署详情marshal后作为transaction的payload
 	data, err := proto.Marshal(chaincodeDeploymentSpec)
 	if err != nil {
 		logger.Errorf("Error mashalling payload for chaincode deployment: %s", err)

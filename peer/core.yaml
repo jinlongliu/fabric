@@ -236,6 +236,7 @@ vm:
     # unix:///var/run/docker.sock
     # http://localhost:2375
     # https://localhost:2376
+    # 在BDDtest compose-defaults.yml中将主机的docker.sock共享到容器中
     endpoint: unix:///var/run/docker.sock
 
     # settings for docker vms

@@ -37,6 +37,7 @@ func (client *clientImpl) createTransactionNonce() ([]byte, error) {
 
 func (client *clientImpl) createDeployTx(chaincodeDeploymentSpec *obc.ChaincodeDeploymentSpec, uuid string, nonce []byte, tCert tCert, attrs ...string) (*obc.Transaction, error) {
 	// Create a new transaction
+	// 将chaincodeDeploymentSpce转换为交易payload为chaincodeDeploymentSpec的加密处理
 	tx, err := obc.NewChaincodeDeployTransaction(chaincodeDeploymentSpec, uuid)
 	if err != nil {
 		client.Errorf("Failed creating new transaction [%s].", err.Error())
@@ -204,6 +205,7 @@ func (client *clientImpl) newChaincodeDeployUsingTCert(chaincodeDeploymentSpec *
 
 	// Sign the transaction and append the signature
 	// 1. Marshall tx to bytes
+	// transaction转变为字节
 	rawTx, err := proto.Marshal(tx)
 	if err != nil {
 		client.Errorf("Failed marshaling tx [%s].", err.Error())
@@ -211,6 +213,7 @@ func (client *clientImpl) newChaincodeDeployUsingTCert(chaincodeDeploymentSpec *
 	}
 
 	// 2. Sign rawTx and check signature
+	// 针对交易签名
 	rawSignature, err := tCert.Sign(rawTx)
 	if err != nil {
 		client.Errorf("Failed creating signature [% x]: [%s].", rawTx, err.Error())
