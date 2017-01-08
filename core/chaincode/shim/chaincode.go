@@ -61,6 +61,7 @@ var peerAddress string
 // Start is the entry point for chaincodes bootstrap. It is not an API for
 // chaincodes.
 // chaincodes引导程序的入口点：解析chaincode参数，并向验证节点注册，等待验证节点回调其init
+// chaincode引导程序
 func Start(cc Chaincode) error {
 	// If Start() is called, we assume this is a standalone chaincode and set
 	// up formatted logging.

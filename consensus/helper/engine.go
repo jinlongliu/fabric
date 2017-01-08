@@ -44,9 +44,11 @@ func (eng *EngineImpl) GetHandlerFactory() peer.HandlerFactory {
 }
 
 // ProcessTransactionMsg processes a Message in context of a Transaction
+// 处理交易信息
 func (eng *EngineImpl) ProcessTransactionMsg(msg *pb.Message, tx *pb.Transaction) (response *pb.Response) {
 	//TODO: Do we always verify security, or can we supply a flag on the invoke ot this functions so to bypass check for locally generated transactions?
 	if tx.Type == pb.Transaction_CHAINCODE_QUERY {
+		// 查询交易
 		if !engine.helper.valid {
 			logger.Warning("Rejecting query because state is currently not valid")
 			return &pb.Response{Status: pb.Response_FAILURE,
@@ -67,6 +69,7 @@ func (eng *EngineImpl) ProcessTransactionMsg(msg *pb.Message, tx *pb.Transaction
 		}
 	} else {
 		// Chaincode Transaction
+		// 非查询交易，可能改变世界状态，部署、调用、终止
 		response = &pb.Response{Status: pb.Response_SUCCESS, Msg: []byte(tx.Txid)}
 
 		//TODO: Do we need to verify security, or can we supply a flag on the invoke ot this functions

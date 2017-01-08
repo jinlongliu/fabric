@@ -283,6 +283,7 @@ func (p *Impl) Chat(stream pb.Peer_ChatServer) error {
 }
 
 // ProcessTransaction implementation of the ProcessTransaction RPC function
+// 节点上处理交易
 func (p *Impl) ProcessTransaction(ctx context.Context, tx *pb.Transaction) (response *pb.Response, err error) {
 	peerLogger.Debugf("ProcessTransaction processing transaction txid = %s", tx.Txid)
 	// Need to validate the Tx's signature if we are a validator.
@@ -511,8 +512,10 @@ func (p *Impl) sendTransactionsToLocalEngine(transaction *pb.Transaction) *pb.Re
 	}
 
 	var response *pb.Response
+	// 消息类型6， CHAIN_TRANSACTION
 	msg := &pb.Message{Type: pb.Message_CHAIN_TRANSACTION, Payload: data, Timestamp: util.CreateUtcTimestamp()}
 	peerLogger.Debugf("Sending message %s with timestamp %v to local engine", msg.Type, msg.Timestamp)
+	// 本地引擎处理交易信息
 	response = p.engine.ProcessTransactionMsg(msg, transaction)
 
 	return response
@@ -631,6 +634,7 @@ func (p *Impl) ExecuteTransaction(transaction *pb.Transaction) (response *pb.Res
 		response = p.sendTransactionsToLocalEngine(transaction)
 	} else {
 		peerAddresses := p.discHelper.GetRandomNodes(1)
+		// 发送到其它节点，调用其它节点上的ProcessTransaction，转换为调用其它节点上调用ExecuteTransaction
 		response = p.SendTransactionsToPeer(peerAddresses[0], transaction)
 	}
 	return response

@@ -49,6 +49,7 @@ func Execute(ctxt context.Context, chain *ChaincodeSupport, t *pb.Transaction) (
 	}
 
 	if t.Type == pb.Transaction_CHAINCODE_DEPLOY {
+		// 调用chaincode supper的Deploy方法
 		_, err := chain.Deploy(ctxt, t)
 		if err != nil {
 			return nil, nil, fmt.Errorf("Failed to deploy chaincode spec(%s)", err)

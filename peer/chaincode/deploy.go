@@ -56,7 +56,7 @@ func chaincodeDeploy(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Error building %s: %s", chainFuncName, err)
 	}
 
-	// 执行部署
+	// 执行部署，gRPC远程调用部署，服务器端实现在devops.go中Devops对象
 	chaincodeDeploymentSpec, err := devopsClient.Deploy(context.Background(), spec)
 	if err != nil {
 		return fmt.Errorf("Error building %s: %s\n", chainFuncName, err)

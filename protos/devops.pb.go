@@ -148,6 +148,7 @@ const _ = grpc.SupportPackageIsVersion3
 // Client API for Devops service
 // 接口定义
 
+// gRPC调用客户端存根
 type DevopsClient interface {
 	// Log in - passed Secret object and returns Response object, where
 	// msg is the security context to be used in subsequent invocations

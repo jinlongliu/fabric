@@ -457,6 +457,7 @@ type BuildArg struct {
 // stream.
 //
 // See https://goo.gl/xySxCe for more details.
+// 此处利用docker remote api来创建docker镜像
 func (c *Client) BuildImage(opts BuildImageOptions) error {
 	if opts.OutputStream == nil {
 		return ErrMissingOutputStream
@@ -505,6 +506,9 @@ func (c *Client) BuildImage(opts BuildImageOptions) error {
 		}
 	}
 
+	// Golang docker client进行docker remote api调用创建镜像
+	// https://docs.docker.com/engine/reference/api/docker_remote_api_v1.20/
+	// Build image from a Dockerfile
 	return c.stream("POST", fmt.Sprintf("/build?%s", qs), streamOptions{
 		setRawTerminal:    true,
 		rawJSONStream:     opts.RawJSONStream,

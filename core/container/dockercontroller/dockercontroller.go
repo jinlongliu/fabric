@@ -99,7 +99,7 @@ func getDockerHostConfig() *docker.HostConfig {
 
 	return hostConfig
 }
-
+// 根据指定镜像创建容器
 func (vm *DockerVM) createContainer(ctxt context.Context, client *docker.Client, imageID string, containerID string, args []string, env []string, attachstdin bool, attachstdout bool) error {
 	config := docker.Config{Cmd: args, Image: imageID, Env: env, AttachStdin: attachstdin, AttachStdout: attachstdout}
 	copts := docker.CreateContainerOptions{Name: containerID, Config: &config, HostConfig: getDockerHostConfig()}
@@ -112,6 +112,7 @@ func (vm *DockerVM) createContainer(ctxt context.Context, client *docker.Client,
 	return nil
 }
 
+// 部署docker image，由chaincode里的docker file 构建docker镜像
 func (vm *DockerVM) deployImage(client *docker.Client, ccid ccintf.CCID, args []string, env []string, attachstdin bool, attachstdout bool, reader io.Reader) error {
 	id, _ := vm.GetVMName(ccid)
 	outputbuf := bytes.NewBuffer(nil)
@@ -137,6 +138,7 @@ func (vm *DockerVM) deployImage(client *docker.Client, ccid ccintf.CCID, args []
 //for docker inputbuf is tar reader ready for use by docker.Client
 //the stream from end client to peer could directly be this tar stream
 //talk to docker daemon using docker Client and build the image
+// 利用可读targz进行创建docker镜像
 func (vm *DockerVM) Deploy(ctxt context.Context, ccid ccintf.CCID, args []string, env []string, attachstdin bool, attachstdout bool, reader io.Reader) error {
 	client, err := cutil.NewDockerClient()
 	switch err {
@@ -166,9 +168,11 @@ func (vm *DockerVM) Start(ctxt context.Context, ccid ccintf.CCID, args []string,
 	vm.stopInternal(ctxt, client, containerID, 0, false, false)
 
 	dockerLogger.Debugf("Start container %s", containerID)
+	// 启动时创建docker容器
 	err = vm.createContainer(ctxt, client, imageID, containerID, args, env, attachstdin, attachstdout)
 	if err != nil {
 		//if image not found try to create image and retry
+		// 如果镜像不存在，则先构建镜像再用奖项构建容器
 		if err == docker.ErrNoSuchImage {
 			if reader != nil {
 				dockerLogger.Debugf("start-could not find image ...attempt to recreate image %s", err)

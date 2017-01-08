@@ -55,6 +55,7 @@ type externalEventReceiver struct {
 }
 
 // RecvMsg is called by the stack when a new message is received
+// 实现了Consenter.RecvMsg用户接收消息
 func (eer *externalEventReceiver) RecvMsg(ocMsg *pb.Message, senderHandle *pb.PeerID) error {
 	eer.manager.Queue() <- batchMessageEvent{
 		msg:    ocMsg,

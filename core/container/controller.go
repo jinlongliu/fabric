@@ -29,6 +29,7 @@ import (
 )
 
 //abstract virtual image for supporting arbitrary virual machines
+// 对象DockerVM实现了这些接口，InprocVM 同样实现了这些
 type vm interface {
 	Deploy(ctxt context.Context, ccid ccintf.CCID, args []string, env []string, attachstdin bool, attachstdout bool, reader io.Reader) error
 	Start(ctxt context.Context, ccid ccintf.CCID, args []string, env []string, attachstdin bool, attachstdout bool, reader io.Reader) error
@@ -96,6 +97,7 @@ func (vmc *VMController) lockContainer(id string) {
 		vmLogger.Debugf("refcount %d (%s)", refLck.refCount, id)
 	}
 	vmcontroller.Unlock()
+	// 等待chaincode vm
 	vmLogger.Debugf("waiting for container(%s) lock", id)
 	refLck.lock.Lock()
 	vmLogger.Debugf("got container (%s) lock", id)
@@ -122,6 +124,7 @@ func (vmc *VMController) unlockContainer(id string) {
 //The context should be passed and tested at each layer till we stop
 //note that we'd stop on the first method on the stack that does not
 //take context
+// 请求需要实现的接口
 type VMCReqIntf interface {
 	do(ctxt context.Context, v vm) VMCResp
 	getCCID() ccintf.CCID
@@ -144,9 +147,11 @@ type CreateImageReq struct {
 	Env          []string
 }
 
+// 作为controller需要实现request的处理do
 func (bp CreateImageReq) do(ctxt context.Context, v vm) VMCResp {
 	var resp VMCResp
 
+	// 调用vm的Deploy方法，具体实现在src/github.com/hyperledger/fabric/core/container/dockercontroller/dockercontroller.go
 	if err := v.Deploy(ctxt, bp.CCID, bp.Args, bp.Env, bp.AttachStdin, bp.AttachStdout, bp.Reader); err != nil {
 		resp = VMCResp{Err: err}
 	} else {
@@ -244,6 +249,7 @@ func (di DestroyImageReq) getCCID() ccintf.CCID {
 //context can be cancelled. VMCProcess will try to cancel calling functions if it can
 //For instance docker clients api's such as BuildImage are not cancelable.
 //In all cases VMCProcess will wait for the called go routine to return
+// VMController处理函数,请求处理函数，请求包含CreateImageReq,StartImageReq
 func VMCProcess(ctxt context.Context, vmtype string, req VMCReqIntf) (interface{}, error) {
 	v := vmcontroller.newVM(vmtype)
 
@@ -261,8 +267,11 @@ func VMCProcess(ctxt context.Context, vmtype string, req VMCReqIntf) (interface{
 			resp = VMCResp{Err: err}
 			return
 		}
+		// 锁定容器
 		vmcontroller.lockContainer(id)
+		// 执行Create Image Request
 		resp = req.do(ctxt, v)
+		// 解锁
 		vmcontroller.unlockContainer(id)
 	}()
 

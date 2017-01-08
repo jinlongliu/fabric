@@ -30,6 +30,7 @@ type ExecutionConsumer interface {
 
 // Consenter is used to receive messages from the network
 // Every consensus plugin needs to implement this interface
+// 用于接收网络消息，每个共识插件都需要实现这个接口
 type Consenter interface {
 	RecvMsg(msg *pb.Message, senderHandle *pb.PeerID) error // Called serially with incoming messages from gRPC
 	ExecutionConsumer
