@@ -1245,7 +1245,7 @@ func (handler *ConsensusHandler) HandleMessage(msg *pb.Message) error
 事件流初始化缓冲和超时参数。缓冲保存着几个等待投递的事件，超时参数在缓冲满时有三个选项：
 
 - 如果超时小于0，丢弃新到来的事件
-- 如果超时等于0，阻塞事件知道缓冲再次可用
+- 如果超时等于0，阻塞事件直到缓冲再次可用
 - 如果超时大于0，等待指定的超时时间，如果缓冲还是满的话就丢弃事件
 
 
@@ -1262,7 +1262,7 @@ message Generic {
 `eventType`和`payload`是由事件生产者任意定义的。例如，JSON数据可能被用在`payload`中。链码或插件发出`Generic`事件来与消费者通讯。
 
 #### 3.5.1.2 事件消费者
-事件消费者允许外部应用监听事件。每个事件消费者通过时间流注册事件适配器。消费者框架可以看成是事件流与适配器之间的桥梁。一种典型的事件消费者使用方式：
+事件消费者允许外部应用监听事件。每个事件消费者通过事件流注册事件适配器。消费者框架可以看成是事件流与适配器之间的桥梁。一种典型的事件消费者使用方式：
 
 ```
 adapter = <adapter supplied by the client application to register and receive events>

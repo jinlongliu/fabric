@@ -34,6 +34,7 @@ import (
 )
 
 // Helper contains the reference to the peer's MessageHandlerCoordinator
+// helper作为中介层内含Executor
 type Helper struct {
 	consenter    consensus.Consenter
 	coordinator  peer.MessageHandlerCoordinator
@@ -48,6 +49,7 @@ type Helper struct {
 }
 
 // NewHelper constructs the consensus helper object
+// 插件与其它栈的中介层
 func NewHelper(mhc peer.MessageHandlerCoordinator) *Helper {
 	h := &Helper{
 		coordinator: mhc,
@@ -56,6 +58,7 @@ func NewHelper(mhc peer.MessageHandlerCoordinator) *Helper {
 		valid:       true, // Assume our state is consistent until we are told otherwise, actual consensus (pbft) will invalidate this immediately, but noops will not
 	}
 
+	// 初始化helper的executor
 	h.executor = executor.NewImpl(h, h, mhc)
 	return h
 }

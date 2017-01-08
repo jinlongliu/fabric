@@ -139,6 +139,7 @@ func (b *broadcaster) drainer(dest uint64) {
 }
 
 func (b *broadcaster) unicastOne(msg *pb.Message, dest uint64, wait chan bool) {
+	// 写入一个消息通道
 	select {
 	case b.msgChans[dest] <- &sendRequest{
 		msg:  msg,
@@ -150,7 +151,7 @@ func (b *broadcaster) unicastOne(msg *pb.Message, dest uint64, wait chan bool) {
 		b.closed.Done()
 	}
 }
-
+// 发送消息给其它节点，广播
 func (b *broadcaster) send(msg *pb.Message, dest *uint64) error {
 	select {
 	case <-b.closedCh:
@@ -175,7 +176,9 @@ func (b *broadcaster) send(msg *pb.Message, dest *uint64) error {
 		b.unicastOne(msg, *dest, wait)
 	} else {
 		b.closed.Add(len(b.msgChans))
+		// 所有消息通道循环
 		for i := range b.msgChans {
+			// 单一传播1个
 			b.unicastOne(msg, i, wait)
 		}
 	}
@@ -208,10 +211,12 @@ outer:
 	return nil
 }
 
+// 实现consensus.Communicator
 func (b *broadcaster) Unicast(msg *pb.Message, dest uint64) error {
 	return b.send(msg, &dest)
 }
 
 func (b *broadcaster) Broadcast(msg *pb.Message) error {
+	// 广播发送，msg为proto.Marshal后的结果, 接收者？
 	return b.send(msg, nil)
 }

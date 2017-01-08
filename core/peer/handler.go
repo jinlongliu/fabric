@@ -268,7 +268,9 @@ func (d *Handler) when(stateToCheck string) bool {
 }
 
 // HandleMessage handles the Openchain messages for the Peer.
+// 处理节点消息，比如DISC_HELLO，DISC_PEERS
 func (d *Handler) HandleMessage(msg *pb.Message) error {
+	// 输出日志
 	peerLogger.Debugf("Handling Message of type: %s ", msg.Type)
 	if d.FSM.Cannot(msg.Type.String()) {
 		return fmt.Errorf("Peer FSM cannot handle message (%s) with payload size (%d) while in state: %s", msg.Type.String(), len(msg.Payload), d.FSM.Current())

@@ -50,7 +50,9 @@ const (
 var chaincodeLogger = logging.MustGetLogger("chaincode")
 
 // MessageHandler interface for handling chaincode messages (common between Peer chaincode support and chaincode)
+// 消息处理接口，处理chaincode support 和 chaincode
 type MessageHandler interface {
+	//消息前缀ChaincodeMessage_
 	HandleMessage(msg *pb.ChaincodeMessage) error
 	SendMessage(msg *pb.ChaincodeMessage) error
 }
@@ -1379,6 +1381,7 @@ func (handler *Handler) handleQueryChaincode(msg *pb.ChaincodeMessage) {
 }
 
 // HandleMessage implementation of MessageHandler interface.  Peer's handling of Chaincode messages.
+// 节点处理chaincode消息,消息前缀ChaincodeMessage_
 func (handler *Handler) HandleMessage(msg *pb.ChaincodeMessage) error {
 	chaincodeLogger.Debugf("[%s]Handling ChaincodeMessage of type: %s in state %s", shorttxid(msg.Txid), msg.Type, handler.FSM.Current())
 

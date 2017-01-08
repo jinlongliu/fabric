@@ -40,6 +40,7 @@ func init() {
 }
 
 // GetPlugin returns the handle to the Consenter singleton
+// 返回consenter，其包含RecvMsg方法，用于接收消息
 func GetPlugin(c consensus.Stack) consensus.Consenter {
 	if pluginInstance == nil {
 		pluginInstance = New(c)

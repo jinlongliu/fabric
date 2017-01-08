@@ -22,8 +22,10 @@ import (
 
 //EventAdapter is the interface by which a openchain event client registers interested events and
 //receives messages from the openchain event Server
+// 事件适配器
 type EventAdapter interface {
 	GetInterestedEvents() ([]*ehpb.Interest, error)
+	// 当事件消费者框架接受到事件后调用的接口
 	Recv(msg *ehpb.Event) (bool, error)
 	Disconnected(err error)
 }

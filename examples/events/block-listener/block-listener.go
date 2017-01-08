@@ -28,6 +28,7 @@ import (
 	pb "github.com/hyperledger/fabric/protos"
 )
 
+// 实现事件适配器
 type adapter struct {
 	notfy              chan *pb.Event_Block
 	rejected           chan *pb.Event_Rejection
@@ -82,6 +83,8 @@ func createEventClient(eventAddress string, listenToRejections bool, cid string)
 	done := make(chan *pb.Event_Block)
 	reject := make(chan *pb.Event_Rejection)
 	adapter := &adapter{notfy: done, rejected: reject, listenToRejections: listenToRejections, chaincodeID: cid, cEvent: make(chan *pb.Event_ChaincodeEvent)}
+	// NewEventsClient Returns a new grpc.ClientConn to the configured local PEER.
+	// 连向本地的gRPC client
 	obcEHClient, _ = consumer.NewEventsClient(eventAddress, 5, adapter)
 	if err := obcEHClient.Start(); err != nil {
 		fmt.Printf("could not start chat %s\n", err)
@@ -103,6 +106,7 @@ func main() {
 
 	fmt.Printf("Event Address: %s\n", eventAddress)
 
+	// 创建时间客户端，连接7053端口
 	a := createEventClient(eventAddress, listenToRejections, chaincodeID)
 	if a == nil {
 		fmt.Printf("Error creating event client\n")

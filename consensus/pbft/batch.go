@@ -62,6 +62,7 @@ type batchMessage struct {
 // Event types
 
 // batchMessageEvent is sent when a consensus message is received that is then to be sent to pbft
+// 当一个共识消息被接收，发送给pbft的事件, 当消息为Message_CHAIN_TRANSACTION时也发送batchMessageEvent
 type batchMessageEvent batchMessage
 
 // batchTimerEvent is sent when the batch timer expires
@@ -78,12 +79,15 @@ func newObcBatch(id uint64, config *viper.Viper, stack consensus.Stack) *obcBatc
 
 	logger.Debugf("Replica %d obtaining startup information", id)
 
+	// 新创建事件管理器
 	op.manager = events.NewManagerImpl() // TODO, this is hacky, eventually rip it out
+	// 设置事件管理器的适配器
 	op.manager.SetReceiver(op)
 	etf := events.NewTimerFactoryImpl(op.manager)
 	op.pbft = newPbftCore(id, config, op, etf)
 	op.manager.Start()
 	blockchainInfoBlob := stack.GetBlockchainInfoBlob()
+	// 外部事件接收器，将外部消息转化为事件
 	op.externalEventReceiver.manager = op.manager
 	op.broadcaster = newBroadcaster(id, op.pbft.N, op.pbft.f, op.pbft.broadcastTimeout, stack)
 	op.manager.Queue() <- workEvent(func() {
@@ -136,6 +140,7 @@ func (op *obcBatch) Close() {
 
 func (op *obcBatch) submitToLeader(req *Request) events.Event {
 	// Broadcast the request to the network, in case we're in the wrong view
+	// 将包含时间戳、tx、pbft.id的req广播消息
 	op.broadcastMsg(&BatchMessage{Payload: &BatchMessage_Request{Request: req}})
 	op.logAddTxFromRequest(req)
 	op.reqStore.storeOutstanding(req)
@@ -147,11 +152,14 @@ func (op *obcBatch) submitToLeader(req *Request) events.Event {
 }
 
 func (op *obcBatch) broadcastMsg(msg *BatchMessage) {
+	// 消息序列化后再广播
 	msgPayload, _ := proto.Marshal(msg)
+	// 将消息类型更改为一致性消息
 	ocMsg := &pb.Message{
 		Type:    pb.Message_CONSENSUS,
 		Payload: msgPayload,
 	}
+	// 广播的接收者？
 	op.broadcaster.Broadcast(ocMsg)
 }
 
@@ -264,7 +272,10 @@ func (op *obcBatch) txToReq(tx []byte) *Request {
 
 func (op *obcBatch) processMessage(ocMsg *pb.Message, senderHandle *pb.PeerID) events.Event {
 	if ocMsg.Type == pb.Message_CHAIN_TRANSACTION {
+		// 部署chaincode交易消息
+		// Payload为tx，转换为req 里面包含时间戳，tx，pbft.id
 		req := op.txToReq(ocMsg.Payload)
+		// 后续会转化为pb.Message_CONSENSUS消息进行广播
 		return op.submitToLeader(req)
 	}
 
@@ -352,6 +363,8 @@ func (op *obcBatch) resubmitOutstandingReqs() events.Event {
 }
 
 // allow the primary to send a batch when the timer expires
+// 实现了事件接收器方法，obcBatch本身在包含事件处理方法，同时包含一个外部事件接收器，把一个外部消息转换为事件
+// externalEventReceiver 实现了consenter.RecvMsg() 可以被其它栈调用发送消息给共识插件
 func (op *obcBatch) ProcessEvent(event events.Event) events.Event {
 	logger.Debugf("Replica %d batch main thread looping", op.pbft.id)
 	switch et := event.(type) {

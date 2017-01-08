@@ -59,6 +59,7 @@ func NewImpl(consumer consensus.ExecutionConsumer, rawExecutor PartialStack, stp
 }
 
 // ProcessEvent is the main event loop for the executor.Coordinator
+// 实现了事件接收器方法
 func (co *coordinatorImpl) ProcessEvent(event events.Event) events.Event {
 	switch et := event.(type) {
 	case executeEvent:

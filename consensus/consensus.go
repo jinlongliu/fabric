@@ -43,8 +43,11 @@ type Inquirer interface {
 }
 
 // Communicator is used to send messages to other validators
+// 用户发送给其它验证节点，需要共识插件实现
 type Communicator interface {
+	// 广播
 	Broadcast(msg *pb.Message, peerType pb.PeerEndpoint_Type) error
+	// 单一传播
 	Unicast(msg *pb.Message, receiverHandle *pb.PeerID) error
 }
 

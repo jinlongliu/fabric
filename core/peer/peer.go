@@ -98,6 +98,7 @@ type StateAccessor interface {
 // MessageHandler standard interface for handling Openchain messages.
 type MessageHandler interface {
 	RemoteLedger
+	// 节点消息处理定义
 	HandleMessage(msg *pb.Message) error
 	SendMessage(msg *pb.Message) error
 	To() (pb.PeerEndpoint, error)
@@ -105,6 +106,7 @@ type MessageHandler interface {
 }
 
 // MessageHandlerCoordinator responsible for coordinating between the registered MessageHandler's
+// 消息处理协调器
 type MessageHandlerCoordinator interface {
 	Peer
 	SecurityAccessor
@@ -505,7 +507,7 @@ func (p *Impl) SendTransactionsToPeer(peerAddress string, transaction *pb.Transa
 func (p *Impl) sendTransactionsToLocalEngine(transaction *pb.Transaction) *pb.Response {
 
 	peerLogger.Debugf("Marshalling transaction %s to send to local engine", transaction.Type)
-	// 交易再次编码
+	// 交易再次编码，转换为数据后续在batch.go ProcessEvent processMessage 再次转化为req
 	data, err := proto.Marshal(transaction)
 	if err != nil {
 		return &pb.Response{Status: pb.Response_FAILURE, Msg: []byte(fmt.Sprintf("Error sending transaction to local engine: %s", err))}
@@ -515,7 +517,7 @@ func (p *Impl) sendTransactionsToLocalEngine(transaction *pb.Transaction) *pb.Re
 	// 消息类型6， CHAIN_TRANSACTION
 	msg := &pb.Message{Type: pb.Message_CHAIN_TRANSACTION, Payload: data, Timestamp: util.CreateUtcTimestamp()}
 	peerLogger.Debugf("Sending message %s with timestamp %v to local engine", msg.Type, msg.Timestamp)
-	// 本地引擎处理交易信息
+	// 本地引擎处理交易信息,engine 里面包含共识机制的consenter，helper， peerEndpoint,发给本地引擎
 	response = p.engine.ProcessTransactionMsg(msg, transaction)
 
 	return response
@@ -600,6 +602,7 @@ func (p *Impl) chatWithPeer(address string) error {
 }
 
 // Chat implementation of the the Chat bidi streaming RPC function
+// 双向RPC流
 func (p *Impl) handleChat(ctx context.Context, stream ChatStream, initiatedStream bool) error {
 	deadline, ok := ctx.Deadline()
 	peerLogger.Debugf("Current context deadline = %s, ok = %v", deadline, ok)
@@ -609,7 +612,9 @@ func (p *Impl) handleChat(ctx context.Context, stream ChatStream, initiatedStrea
 	}
 	defer handler.Stop()
 	for {
+		// 从流中读取数据
 		in, err := stream.Recv()
+		// 异常判断
 		if err == io.EOF {
 			peerLogger.Debug("Received EOF, ending Chat")
 			return nil
@@ -619,6 +624,7 @@ func (p *Impl) handleChat(ctx context.Context, stream ChatStream, initiatedStrea
 			peerLogger.Error(e.Error())
 			return e
 		}
+		// 节点消息处理调用
 		err = handler.HandleMessage(in)
 		if err != nil {
 			peerLogger.Errorf("Error handling message: %s", err)

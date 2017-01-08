@@ -30,6 +30,7 @@ import (
 )
 
 //EventsClient holds the stream and adapter for consumer to work with
+// 事件流和事件适配器之间的桥梁，给一个事件流，指定一个事件适配器，事件适配器ProcessEvent会处理事件
 type EventsClient struct {
 	sync.RWMutex
 	peerAddress string
@@ -39,6 +40,7 @@ type EventsClient struct {
 }
 
 //NewEventsClient Returns a new grpc.ClientConn to the configured local PEER.
+// 新建一个事件消费者客户端
 func NewEventsClient(peerAddress string, regTimeout time.Duration, adapter EventAdapter) (*EventsClient, error) {
 	var err error
 	if regTimeout < 100*time.Millisecond {

@@ -44,7 +44,7 @@ func (eng *EngineImpl) GetHandlerFactory() peer.HandlerFactory {
 }
 
 // ProcessTransactionMsg processes a Message in context of a Transaction
-// 处理交易信息
+// 处理交易信息，实现了TransactionProccesor接口
 func (eng *EngineImpl) ProcessTransactionMsg(msg *pb.Message, tx *pb.Transaction) (response *pb.Response) {
 	//TODO: Do we always verify security, or can we supply a flag on the invoke ot this functions so to bypass check for locally generated transactions?
 	if tx.Type == pb.Transaction_CHAINCODE_QUERY {
@@ -70,6 +70,7 @@ func (eng *EngineImpl) ProcessTransactionMsg(msg *pb.Message, tx *pb.Transaction
 	} else {
 		// Chaincode Transaction
 		// 非查询交易，可能改变世界状态，部署、调用、终止
+		// 构建响应发给用户，同时把消息发给consenter.RecvMsg，共识机制
 		response = &pb.Response{Status: pb.Response_SUCCESS, Msg: []byte(tx.Txid)}
 
 		//TODO: Do we need to verify security, or can we supply a flag on the invoke ot this functions
@@ -85,6 +86,8 @@ func (eng *EngineImpl) ProcessTransactionMsg(msg *pb.Message, tx *pb.Transaction
 		// TODO, do we want to put these requests into a queue? This will block until
 		// the consenter gets around to handling the message, but it also provides some
 		// natural feedback to the REST API to determine how long it takes to queue messages
+		// 交易消息发送给共识机制，交易处理器引擎把交易信息发送给共识机制插件
+		// 本地引擎将消息交给共识机制，该消息类型为Message_CHAIN_TRANSACTION
 		err := eng.consenter.RecvMsg(msg, eng.peerEndpoint.ID)
 		if err != nil {
 			response = &pb.Response{Status: pb.Response_FAILURE, Msg: []byte(err.Error())}
@@ -117,6 +120,7 @@ func GetEngine(coord peer.MessageHandlerCoordinator) (peer.Engine, error) {
 	engineOnce.Do(func() {
 		engine = new(EngineImpl)
 		engine.helper = NewHelper(coord)
+		// 构建批准者consenter
 		engine.consenter = controller.NewConsenter(engine.helper)
 		engine.helper.setConsenter(engine.consenter)
 		engine.peerEndpoint, err = coord.GetPeerEndpoint()

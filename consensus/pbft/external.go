@@ -50,13 +50,16 @@ type committedEvent struct {
 // rolledBackEvent is sent when a requested rollback completes
 type rolledBackEvent struct{}
 
+// 外部事件接收器，实现了consenter的接口方法，RecvMsg，Executed，Committed，RolledBack，StateUpdated，接收消息
+// 消息转化为batchMessageEvent方法队列
 type externalEventReceiver struct {
 	manager events.Manager
 }
 
 // RecvMsg is called by the stack when a new message is received
-// 实现了Consenter.RecvMsg用户接收消息
+// 实现了Consenter.RecvMsg用户接收消息, 将message转化为事件写入事件总线
 func (eer *externalEventReceiver) RecvMsg(ocMsg *pb.Message, senderHandle *pb.PeerID) error {
+	// 一个batchMessageEvent事件写入队列,当接收到消息时，构建一个batchMessageEvent写入队列
 	eer.manager.Queue() <- batchMessageEvent{
 		msg:    ocMsg,
 		sender: senderHandle,

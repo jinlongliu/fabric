@@ -319,6 +319,7 @@ func (instance *pbftCore) close() {
 }
 
 // allow the view-change protocol to kick-off when the timer expires
+// 实现了事件接收器方法
 func (instance *pbftCore) ProcessEvent(e events.Event) events.Event {
 	var err error
 	logger.Debugf("Replica %d processing event", instance.id)

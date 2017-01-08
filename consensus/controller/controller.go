@@ -35,8 +35,10 @@ func init() {
 }
 
 // NewConsenter constructs a Consenter object if not already present
+// 构建consenter【同意者、批准者】
 func NewConsenter(stack consensus.Stack) consensus.Consenter {
 
+	// 读取core.yaml中共识机制插件配置，默认noops无共识机制
 	plugin := strings.ToLower(viper.GetString("peer.validator.consensus.plugin"))
 	if plugin == "pbft" {
 		logger.Infof("Creating consensus plugin %s", plugin)

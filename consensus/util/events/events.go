@@ -33,8 +33,10 @@ type Event interface{}
 
 // Receiver is a consumer of events, ProcessEvent will be called serially
 // as events arrive
+// 接收器，事件消费者接口
 type Receiver interface {
 	// ProcessEvent delivers an event to the Receiver, if it returns non-nil, the return is the next processed event
+	// ProcessEvent分发一个事件给接收器，如果返回非空，返回为下次处理事件
 	ProcessEvent(e Event) Event
 }
 
@@ -67,6 +69,7 @@ func (t *threaded) Halt() {
 
 // Manager provides a serialized interface for submitting events to
 // a Receiver on the other side of the queue
+// 提供一个序列化接口，用于提交事件给一个接收器
 type Manager interface {
 	Inject(Event)         // A temporary interface to allow the event manager thread to skip the queue
 	Queue() chan<- Event  // Get a write-only reference to the queue, to submit events

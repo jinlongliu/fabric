@@ -41,6 +41,7 @@ const (
 
 // ConsensusHandler handles consensus messages.
 // It also implements the Stack.
+// 实现了peer MessageHandler接口
 type ConsensusHandler struct {
 	peer.MessageHandler
 	consenterChan chan *util.Message
@@ -76,10 +77,14 @@ func NewConsensusHandler(coord peer.MessageHandlerCoordinator,
 }
 
 // HandleMessage handles the incoming Fabric messages for the Peer
+// 实现peer MessageHandler HandleMessage
+// 为节点处理输入的消息，fabric 和openchain有什么区别？处理共识消息，如果不是共识消息交给peer.MessageHandler处理
 func (handler *ConsensusHandler) HandleMessage(msg *pb.Message) error {
+	// 节点消息Message_CHAIN_TRANSACTION后续会转化为共识消息，交给共识插件处理
 	if msg.Type == pb.Message_CONSENSUS {
 		senderPE, _ := handler.To()
 		select {
+		// 共识消息写入consenterChan
 		case handler.consenterChan <- &util.Message{
 			Msg:    msg,
 			Sender: senderPE.ID,
@@ -95,5 +100,6 @@ func (handler *ConsensusHandler) HandleMessage(msg *pb.Message) error {
 	if logger.IsEnabledFor(logging.DEBUG) {
 		logger.Debugf("Did not handle message of type %s, passing on to next MessageHandler", msg.Type)
 	}
+	// 节点消息处理调用, 消息非共识消息，交给节点处理
 	return handler.MessageHandler.HandleMessage(msg)
 }
