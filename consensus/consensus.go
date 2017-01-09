@@ -37,6 +37,7 @@ type Consenter interface {
 }
 
 // Inquirer is used to retrieve info about the validating network
+// 获取网络中验证节点的句柄
 type Inquirer interface {
 	GetNetworkInfo() (self *pb.PeerEndpoint, network []*pb.PeerEndpoint, err error)
 	GetNetworkHandles() (self *pb.PeerID, network []*pb.PeerID, err error)
@@ -47,7 +48,7 @@ type Inquirer interface {
 type Communicator interface {
 	// 广播
 	Broadcast(msg *pb.Message, peerType pb.PeerEndpoint_Type) error
-	// 单一传播
+	// 单一传播,单播
 	Unicast(msg *pb.Message, receiverHandle *pb.PeerID) error
 }
 

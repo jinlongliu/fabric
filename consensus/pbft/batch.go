@@ -29,7 +29,7 @@ import (
 	"github.com/op/go-logging"
 	"github.com/spf13/viper"
 )
-
+// open block chain Batch???
 type obcBatch struct {
 	obcGeneric
 	externalEventReceiver
@@ -89,6 +89,7 @@ func newObcBatch(id uint64, config *viper.Viper, stack consensus.Stack) *obcBatc
 	blockchainInfoBlob := stack.GetBlockchainInfoBlob()
 	// 外部事件接收器，将外部消息转化为事件
 	op.externalEventReceiver.manager = op.manager
+	// broadcaster 广播员管理各节点的消息通道，有通信接口成员可以广播，单播获取节点信息，节点句柄
 	op.broadcaster = newBroadcaster(id, op.pbft.N, op.pbft.f, op.pbft.broadcastTimeout, stack)
 	op.manager.Queue() <- workEvent(func() {
 		op.pbft.stateTransfer(&stateUpdateTarget{

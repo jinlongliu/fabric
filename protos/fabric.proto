@@ -131,6 +131,7 @@ message NonHashData {
 service Peer {
     // Accepts a stream of Message during chat session, while receiving
     // other Message (e.g. from other peers).
+    // 双向gRPC通信流
     rpc Chat(stream Message) returns (stream Message) {}
 
     // Process a transaction from a remote source.

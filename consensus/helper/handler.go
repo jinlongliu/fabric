@@ -42,6 +42,7 @@ const (
 // ConsensusHandler handles consensus messages.
 // It also implements the Stack.
 // 实现了peer MessageHandler接口
+// 共识机制ConsensusHandler 内含peer的MessageHandler
 type ConsensusHandler struct {
 	peer.MessageHandler
 	consenterChan chan *util.Message
@@ -50,14 +51,20 @@ type ConsensusHandler struct {
 
 // NewConsensusHandler constructs a new MessageHandler for the plugin.
 // Is instance of peer.HandlerFactory
+// 新的共识机制处理器, 验证节点启动时会配置其消息处理方法，如果是验证节点则会根据不同的共识机制加载不同engine的处理方法
+// initiatedStream bool，流是否初始化，在节点准备chat时，会先用false来初始化流
+// 在handleChat时会获取处理器
 func NewConsensusHandler(coord peer.MessageHandlerCoordinator,
 	stream peer.ChatStream, initiatedStream bool) (peer.MessageHandler, error) {
 
+	// 先构建节点处理器，后续赋给共识机制处理器
+	// peer 的gPRC Chat()实现中initiatedStream 为false
 	peerHandler, err := peer.NewPeerHandler(coord, stream, initiatedStream)
 	if err != nil {
 		return nil, fmt.Errorf("Error creating PeerHandler: %s", err)
 	}
 
+	// 共识处理器，同时把上述构建的节点处理器作为其成员
 	handler := &ConsensusHandler{
 		MessageHandler: peerHandler,
 		coordinator:    coord,
@@ -70,7 +77,9 @@ func NewConsensusHandler(coord peer.MessageHandlerCoordinator,
 		consensusQueueSize = DefaultConsensusQueueSize
 	}
 
+	// 共识机制的处理chan
 	handler.consenterChan = make(chan *util.Message, consensusQueueSize)
+	// fanin 扇入（端数）
 	getEngineImpl().consensusFan.AddFaninChannel(handler.consenterChan)
 
 	return handler, nil
@@ -79,6 +88,8 @@ func NewConsensusHandler(coord peer.MessageHandlerCoordinator,
 // HandleMessage handles the incoming Fabric messages for the Peer
 // 实现peer MessageHandler HandleMessage
 // 为节点处理输入的消息，fabric 和openchain有什么区别？处理共识消息，如果不是共识消息交给peer.MessageHandler处理
+// 处理共识消息，非共识交给节点的MessageHandler处理
+// 验证节点的消息处理方法，非验证节点处理方法为peer.NewPeerHandler
 func (handler *ConsensusHandler) HandleMessage(msg *pb.Message) error {
 	// 节点消息Message_CHAIN_TRANSACTION后续会转化为共识消息，交给共识插件处理
 	if msg.Type == pb.Message_CONSENSUS {
@@ -101,5 +112,6 @@ func (handler *ConsensusHandler) HandleMessage(msg *pb.Message) error {
 		logger.Debugf("Did not handle message of type %s, passing on to next MessageHandler", msg.Type)
 	}
 	// 节点消息处理调用, 消息非共识消息，交给节点处理
+	// 共识处理器，初始化时指定了节点的消息处理器
 	return handler.MessageHandler.HandleMessage(msg)
 }

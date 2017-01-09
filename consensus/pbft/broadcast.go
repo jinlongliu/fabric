@@ -40,14 +40,19 @@ type broadcaster struct {
 	closedCh         chan struct{}
 }
 
+// 发送给peer的消息
 type sendRequest struct {
 	msg  *pb.Message
 	done chan bool
 }
 
+// 创建新广播员
 func newBroadcaster(self uint64, N int, f int, broadcastTimeout time.Duration, c communicator) *broadcaster {
 	queueSize := 10 // XXX increase after testing
+	// N 网络中验证节点最大数
+	// f 网络中容忍最大错误数
 
+	// 消息总线
 	chans := make(map[uint64]chan *sendRequest)
 	b := &broadcaster{
 		comm:             c,
@@ -56,6 +61,7 @@ func newBroadcaster(self uint64, N int, f int, broadcastTimeout time.Duration, c
 		msgChans:         chans,
 		closedCh:         make(chan struct{}),
 	}
+	// 网络中大多N个验证节点，所以创建N个sendReques通道
 	for i := 0; i < N; i++ {
 		if uint64(i) == self {
 			continue
@@ -64,6 +70,7 @@ func newBroadcaster(self uint64, N int, f int, broadcastTimeout time.Duration, c
 	}
 
 	// We do not start the go routines in the above loop to avoid concurrent map read/writes
+	// 启动go routines并发
 	for i := 0; i < N; i++ {
 		if uint64(i) == self {
 			continue
@@ -110,7 +117,7 @@ func (b *broadcaster) drainerSend(dest uint64, send *sendRequest, successLastTim
 	return true
 
 }
-
+// drainer排水器，将消息总线里面的消息取出处理掉
 func (b *broadcaster) drainer(dest uint64) {
 	successLastTime := false
 	destChan, exsit := b.msgChans[dest] // Avoid doing the map lookup every send
@@ -138,6 +145,7 @@ func (b *broadcaster) drainer(dest uint64) {
 	}
 }
 
+// 单播一个消息，写入chan
 func (b *broadcaster) unicastOne(msg *pb.Message, dest uint64, wait chan bool) {
 	// 写入一个消息通道
 	select {
@@ -211,7 +219,7 @@ outer:
 	return nil
 }
 
-// 实现consensus.Communicator
+// pbft实现consensus.Communicator
 func (b *broadcaster) Unicast(msg *pb.Message, dest uint64) error {
 	return b.send(msg, &dest)
 }

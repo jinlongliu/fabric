@@ -206,6 +206,7 @@ type TransactionProccesor interface {
 type Engine interface {
 	TransactionProccesor
 	// GetHandlerFactory return a handler for an accepted Chat stream
+	// 获取一个处理器工厂，处理器工厂是一个方法 可以获取一个处理器
 	GetHandlerFactory() HandlerFactory
 	//GetInputChannel() (chan<- *pb.Transaction, error)
 }
@@ -218,6 +219,7 @@ func NewPeerWithHandler(secHelperFunc func() crypto.Peer, handlerFact HandlerFac
 	if handlerFact == nil {
 		return nil, errors.New("Cannot supply nil handler factory")
 	}
+	// 非验证节点的处理方法  peer.NewPeerHandler
 	peer.handlerFactory = handlerFact
 	peer.handlerMap = &handlerMap{m: make(map[pb.PeerID]MessageHandler)}
 
@@ -268,6 +270,8 @@ func NewPeerWithEngine(secHelperFunc func() crypto.Peer, engFactory EngineFactor
 	if err != nil {
 		return nil, err
 	}
+	// peer.engine.GetHandlerFactory() 返回一个方法函数，后续调用handleFactory相当于调用那个处理方法
+	// 相当于处理器工厂初始化，
 	peer.handlerFactory = peer.engine.GetHandlerFactory()
 	if peer.handlerFactory == nil {
 		return nil, errors.New("Cannot supply nil handler factory")
@@ -280,7 +284,9 @@ func NewPeerWithEngine(secHelperFunc func() crypto.Peer, engFactory EngineFactor
 }
 
 // Chat implementation of the the Chat bidi streaming RPC function
+// gRPC 服务端方法, 被客户端调用， stream为gPRC服务框架生成直接使用
 func (p *Impl) Chat(stream pb.Peer_ChatServer) error {
+	// 准备处理chat， false 为 initiatedStream 状态，流是否已经初始化？
 	return p.handleChat(stream.Context(), stream, false)
 }
 
@@ -584,14 +590,21 @@ func (p *Impl) chatWithPeer(address string) error {
 		peerLogger.Errorf("Error creating connection to peer address %s: %s", address, err)
 		return err
 	}
+	// 创建一个连接到peer的gRPC客户端
 	serverClient := pb.NewPeerClient(conn)
+	// 获取上下文, 返回非nil,空的Context, 用于主函数，初始化
 	ctx := context.Background()
+	// 初始化chat流, 调用远端Chat
+	// 调用gRPC客户端存根获取一个gRPC流，或者后续chat参数
+	// 利用上下文ctx调用双向gRPC服务器方法，获取一个服务器端流，后续进行消息处理
 	stream, err := serverClient.Chat(ctx)
 	if err != nil {
 		peerLogger.Errorf("Error establishing chat with peer address %s: %s", address, err)
 		return err
 	}
 	peerLogger.Debugf("Established Chat with peer address: %s", address)
+	// 处理的stream存放于ConsensusHandler内的peer.MessageHandler即peer.Handler的ChatStream内
+	// 在handleChat内调用了peer的处理方法
 	err = p.handleChat(ctx, stream, true)
 	stream.CloseSend()
 	if err != nil {
@@ -606,6 +619,12 @@ func (p *Impl) chatWithPeer(address string) error {
 func (p *Impl) handleChat(ctx context.Context, stream ChatStream, initiatedStream bool) error {
 	deadline, ok := ctx.Deadline()
 	peerLogger.Debugf("Current context deadline = %s, ok = %v", deadline, ok)
+	// 调用节点的处理器，可能为带共识引擎的，也可能为普通的
+	// stream作为处理器的处理对象
+	// initiatedStream 流是否初始化
+	// handlerFactory 为处理器工厂方法，在peer启动时已经被设置好，此时相当于调用获得一个处理器；
+	// 如果为验证节点此处相当于调用了，共识引擎的处理器工厂方法NewConsensusHandler
+	// 如果是Chat()调用此时p为stream.Context(), 这里为Impl， stream 为 background 后续会参数构建peer.Handler
 	handler, err := p.handlerFactory(p, stream, initiatedStream)
 	if err != nil {
 		return fmt.Errorf("Error creating handler during handleChat initiation: %s", err)
@@ -624,7 +643,7 @@ func (p *Impl) handleChat(ctx context.Context, stream ChatStream, initiatedStrea
 			peerLogger.Error(e.Error())
 			return e
 		}
-		// 节点消息处理调用
+		// 节点消息处理调用，共识机制的验证点击采用ConsensusHandler处理，不同的采用peer.Handler处理
 		err = handler.HandleMessage(in)
 		if err != nil {
 			peerLogger.Errorf("Error handling message: %s", err)

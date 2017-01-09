@@ -39,7 +39,10 @@ type EngineImpl struct {
 }
 
 // GetHandlerFactory returns new NewConsensusHandler
-func (eng *EngineImpl) GetHandlerFactory() peer.HandlerFactory {
+// 获取共识机制引擎处理工厂，返回一个共识机制处理工厂
+// 返回一个处理器工厂， 该处理器器工厂可以获得一个新的消息处理器，验证节点共识引擎实现了获取处理器工厂的接口方法
+// 返回一个能生产共识处理器的方法函数，这个方法函数就是一个工厂函数
+func (eng *EngineImpl)  GetHandlerFactory() peer.HandlerFactory {
 	return NewConsensusHandler
 }
 

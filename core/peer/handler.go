@@ -38,7 +38,7 @@ type Handler struct {
 	Coordinator                   MessageHandlerCoordinator
 	ChatStream                    ChatStream
 	doneChan                      chan struct{}
-	FSM                           *fsm.FSM
+	FSM                           *fsm.FSM //FiniteStateMachine 有穷状态机
 	initiatedStream               bool // Was the stream initiated within this Peer
 	registered                    bool
 	syncBlocks                    chan *pb.SyncBlocks
@@ -51,6 +51,8 @@ type Handler struct {
 
 // NewPeerHandler returns a new Peer handler
 // Is instance of HandlerFactory
+// 对于非验证节点，消息处理方法不需要共识引擎，消息用该方法处理
+// 共识机制处理器也会创建一个节点处理器作为其成员
 func NewPeerHandler(coord MessageHandlerCoordinator, stream ChatStream, initiatedStream bool) (MessageHandler, error) {
 
 	d := &Handler{
@@ -69,6 +71,7 @@ func NewPeerHandler(coord MessageHandlerCoordinator, stream ChatStream, initiate
 	d.snapshotRequestHandler = newSyncStateSnapshotRequestHandler()
 	d.syncStateDeltasRequestHandler = newSyncStateDeltasHandler()
 	d.syncBlocksRequestHandler = newSyncBlocksRequestHandler()
+	// 有穷状态机
 	d.FSM = fsm.NewFSM(
 		"created",
 		fsm.Events{
@@ -99,6 +102,7 @@ func NewPeerHandler(coord MessageHandlerCoordinator, stream ChatStream, initiate
 	)
 
 	// If the stream was initiated from this Peer, send an Initial HELLO message
+	// Chat()时该值为false, 为执行初始化不发送HELLO消息
 	if d.initiatedStream {
 		// Send intiial Hello
 		helloMessage, err := d.Coordinator.NewOpenchainDiscoveryHello()

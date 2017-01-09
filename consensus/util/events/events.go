@@ -99,16 +99,19 @@ func (em *managerImpl) SetReceiver(receiver Receiver) {
 }
 
 // Start creates the go routine necessary to deliver events
+// 事件管理器启动开始事件循环，分发事件
 func (em *managerImpl) Start() {
 	go em.eventLoop()
 }
 
 // queue returns a write only reference to the event queue
+// 返回一个只写的事件channel
 func (em *managerImpl) Queue() chan<- Event {
 	return em.events
 }
 
 // SendEvent performs the event loop on a receiver to completion
+// 事件交给事件接收器处理直到处理完毕next返回空
 func SendEvent(receiver Receiver, event Event) {
 	next := event
 	for {
@@ -121,6 +124,7 @@ func SendEvent(receiver Receiver, event Event) {
 }
 
 // Inject can only safely be called by the managerImpl thread itself, it skips the queue
+// 事件注入方法中发送事件至处理器，处理器会循环调用直到事件结束
 func (em *managerImpl) Inject(event Event) {
 	if em.receiver != nil {
 		SendEvent(em.receiver, event)
@@ -128,6 +132,7 @@ func (em *managerImpl) Inject(event Event) {
 }
 
 // eventLoop is where the event thread loops, delivering events
+// 分发事件，调用事件注入Inject方法
 func (em *managerImpl) eventLoop() {
 	for {
 		select {

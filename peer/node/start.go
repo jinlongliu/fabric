@@ -164,6 +164,8 @@ func serve(args []string) error {
 
 	// Create the peerServer
 	// 如果开启验证则载入共识机制插件，未开启则不加载，默认开启加载noops共识机制
+	// 当前节点是否是验证节点，是验证节点加载共识机制引擎，非验证节点不加载共识引擎，设置针对单点作用非全局
+	// 节点启动默认为验证节点， 节点是否加载共识引擎，决定了节点的消息处理方法peer.handlerFactory被不同的值初始化
 	if peer.ValidatorEnabled() {
 		logger.Debug("Running as validating peer - making genesis block if needed")
 		// 生成创世块
@@ -176,6 +178,7 @@ func serve(args []string) error {
 
 		peerServer, err = peer.NewPeerWithEngine(secHelperFunc, helper.GetEngine)
 	} else {
+		// 不采用共识机制，不加载engine，消息处理方法为peer.NewPeerHandler
 		logger.Debug("Running as non-validating peer")
 		peerServer, err = peer.NewPeerWithHandler(secHelperFunc, peer.NewPeerHandler)
 	}
