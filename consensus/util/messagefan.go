@@ -38,6 +38,7 @@ type Message struct {
 
 // MessageFan contains the reference to the peer's MessageHandlerCoordinator
 type MessageFan struct {
+	// channel 数组
 	ins  []<-chan *Message
 	out  chan *Message
 	lock sync.Mutex
@@ -52,20 +53,26 @@ func NewMessageFan() *MessageFan {
 }
 
 // AddFaninChannel is intended to be invoked by Handler to add a channel to be fan-ed in
+// 被处理器调用将channel fanin
 func (fan *MessageFan) AddFaninChannel(channel <-chan *Message) {
 	fan.lock.Lock()
 	defer fan.lock.Unlock()
 
 	for _, c := range fan.ins {
+		// 已经存在重复
 		if c == channel {
+			// 判断是否存在，存在则返回
 			logger.Warningf("Received duplicate connection")
 			return
 		}
 	}
 
+	// 将channel加入fan.ins
 	fan.ins = append(fan.ins, channel)
 
 	go func() {
+		// channel中的消息写入fan.out
+		// for + channel 循环读，当channel关闭时结束
 		for msg := range channel {
 			fan.out <- msg
 		}
@@ -74,6 +81,7 @@ func (fan *MessageFan) AddFaninChannel(channel <-chan *Message) {
 		defer fan.lock.Unlock()
 
 		for i, c := range fan.ins {
+			// 将channel从fan.ins移除
 			if c == channel {
 				fan.ins = append(fan.ins[:i], fan.ins[i+1:]...)
 			}
@@ -82,6 +90,7 @@ func (fan *MessageFan) AddFaninChannel(channel <-chan *Message) {
 }
 
 // GetOutChannel returns a read only channel which the registered channels fan into
+// 返回一个只读的channel
 func (fan *MessageFan) GetOutChannel() <-chan *Message {
 	return fan.out
 }

@@ -30,6 +30,7 @@ import (
 	"github.com/spf13/viper"
 )
 // open block chain Batch???
+// 实现了接口Receiver的方法ProcessEvent
 type obcBatch struct {
 	obcGeneric
 	externalEventReceiver
@@ -69,6 +70,7 @@ type batchMessageEvent batchMessage
 type batchTimerEvent struct{}
 
 func newObcBatch(id uint64, config *viper.Viper, stack consensus.Stack) *obcBatch {
+	// stack 为 consensus.Helper
 	var err error
 
 	op := &obcBatch{
@@ -90,6 +92,7 @@ func newObcBatch(id uint64, config *viper.Viper, stack consensus.Stack) *obcBatc
 	// 外部事件接收器，将外部消息转化为事件
 	op.externalEventReceiver.manager = op.manager
 	// broadcaster 广播员管理各节点的消息通道，有通信接口成员可以广播，单播获取节点信息，节点句柄
+	// stack 为 consensus.Helper
 	op.broadcaster = newBroadcaster(id, op.pbft.N, op.pbft.f, op.pbft.broadcastTimeout, stack)
 	op.manager.Queue() <- workEvent(func() {
 		op.pbft.stateTransfer(&stateUpdateTarget{
@@ -161,6 +164,7 @@ func (op *obcBatch) broadcastMsg(msg *BatchMessage) {
 		Payload: msgPayload,
 	}
 	// 广播的接收者？
+	// newBroadcaster 获取 broadcaster 对象
 	op.broadcaster.Broadcast(ocMsg)
 }
 
@@ -285,7 +289,9 @@ func (op *obcBatch) processMessage(ocMsg *pb.Message, senderHandle *pb.PeerID) e
 		return nil
 	}
 
+	// 创建一个BatchMessage
 	batchMsg := &BatchMessage{}
+	// ocMsg.Payload 里的转化为 BatchMessage
 	err := proto.Unmarshal(ocMsg.Payload, batchMsg)
 	if err != nil {
 		logger.Errorf("Error unmarshaling message: %s", err)

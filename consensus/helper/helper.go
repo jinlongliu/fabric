@@ -50,7 +50,9 @@ type Helper struct {
 
 // NewHelper constructs the consensus helper object
 // 插件与其它栈的中介层
+// 由消息协调器构建一个 Helper
 func NewHelper(mhc peer.MessageHandlerCoordinator) *Helper {
+	// coordinator 为peer Impl
 	h := &Helper{
 		coordinator: mhc,
 		secOn:       viper.GetBool("security.enabled"),
@@ -119,6 +121,7 @@ func (h *Helper) Broadcast(msg *pb.Message, peerType pb.PeerEndpoint_Type) error
 
 // Unicast sends a message to a specified receiver
 func (h *Helper) Unicast(msg *pb.Message, receiverHandle *pb.PeerID) error {
+	// coordinator 为peer Impl
 	return h.coordinator.Unicast(msg, receiverHandle)
 }
 

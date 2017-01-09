@@ -42,6 +42,7 @@ func init() {
 // GetPlugin returns the handle to the Consenter singleton
 // 返回consenter，其包含RecvMsg方法，用于接收消息
 func GetPlugin(c consensus.Stack) consensus.Consenter {
+	// c 为 consensus.Helper
 	if pluginInstance == nil {
 		pluginInstance = New(c)
 	}
@@ -56,6 +57,7 @@ func New(stack consensus.Stack) consensus.Consenter {
 
 	switch strings.ToLower(config.GetString("general.mode")) {
 	case "batch":
+		// stack 为 consensus.Helper
 		return newObcBatch(id, config, stack)
 	default:
 		panic(fmt.Errorf("Invalid PBFT mode: %s", config.GetString("general.mode")))

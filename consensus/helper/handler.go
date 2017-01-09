@@ -70,6 +70,7 @@ func NewConsensusHandler(coord peer.MessageHandlerCoordinator,
 		coordinator:    coord,
 	}
 
+	// 共识插件每个连接的最大通信消息数，默认为1000，超过1000则拒绝分发
 	consensusQueueSize := viper.GetInt("peer.validator.consensus.buffersize")
 
 	if consensusQueueSize <= 0 {
@@ -77,9 +78,11 @@ func NewConsensusHandler(coord peer.MessageHandlerCoordinator,
 		consensusQueueSize = DefaultConsensusQueueSize
 	}
 
-	// 共识机制的处理chan
+	// 共识机制的处理chan, 初始化1000个消息的channel
 	handler.consenterChan = make(chan *util.Message, consensusQueueSize)
 	// fanin 扇入（端数）
+	// EngineImpl 是一个consensus.Consenter, PeerEndpoint and MessageFan 的结构
+	// getEngineImpl() 返回一个 EngineImpl 实例
 	getEngineImpl().consensusFan.AddFaninChannel(handler.consenterChan)
 
 	return handler, nil
@@ -96,6 +99,7 @@ func (handler *ConsensusHandler) HandleMessage(msg *pb.Message) error {
 		senderPE, _ := handler.To()
 		select {
 		// 共识消息写入consenterChan
+		// 写入fan.ins 转为只读  fan.out, 在consensus.consenter中处理 externalEventReceiver RecvMsg
 		case handler.consenterChan <- &util.Message{
 			Msg:    msg,
 			Sender: senderPE.ID,

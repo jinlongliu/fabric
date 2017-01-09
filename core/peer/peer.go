@@ -185,6 +185,7 @@ type HandlerFactory func(MessageHandlerCoordinator, ChatStream, bool) (MessageHa
 type EngineFactory func(MessageHandlerCoordinator) (Engine, error)
 
 // Impl implementation of the Peer service
+// 实现了MessageHandlerCoordinator接口
 type Impl struct {
 	handlerFactory HandlerFactory
 	handlerMap     *handlerMap
@@ -266,6 +267,9 @@ func NewPeerWithEngine(secHelperFunc func() crypto.Peer, engFactory EngineFactor
 	}
 	peer.ledgerWrapper = &ledgerWrapper{ledger: ledgerPtr}
 
+	// engFactory 引擎工厂方法，通过调用其获取到共识引擎
+	// peer 本身也实现了 MessageHandlerCoordinator
+	// peer： Peer Service的一个实现
 	peer.engine, err = engFactory(peer)
 	if err != nil {
 		return nil, err
@@ -472,6 +476,7 @@ func (p *Impl) Broadcast(msg *pb.Message, typ pb.PeerEndpoint_Type) []error {
 func (p *Impl) getMessageHandler(receiverHandle *pb.PeerID) (MessageHandler, error) {
 	p.handlerMap.RLock()
 	defer p.handlerMap.RUnlock()
+	// 从节点的handleMap中取合适的
 	msgHandler, ok := p.handlerMap.m[*receiverHandle]
 	if !ok {
 		return nil, fmt.Errorf("Message handler not found for receiver %s", receiverHandle.Name)
@@ -480,6 +485,7 @@ func (p *Impl) getMessageHandler(receiverHandle *pb.PeerID) (MessageHandler, err
 }
 
 // Unicast sends a message to a specific peer.
+// 会被共识机制引擎的Helper里的Unicast调用
 func (p *Impl) Unicast(msg *pb.Message, receiverHandle *pb.PeerID) error {
 	msgHandler, err := p.getMessageHandler(receiverHandle)
 	if err != nil {
@@ -521,6 +527,7 @@ func (p *Impl) sendTransactionsToLocalEngine(transaction *pb.Transaction) *pb.Re
 
 	var response *pb.Response
 	// 消息类型6， CHAIN_TRANSACTION
+	// 为交易信息定义为链交易类型
 	msg := &pb.Message{Type: pb.Message_CHAIN_TRANSACTION, Payload: data, Timestamp: util.CreateUtcTimestamp()}
 	peerLogger.Debugf("Sending message %s with timestamp %v to local engine", msg.Type, msg.Timestamp)
 	// 本地引擎处理交易信息,engine 里面包含共识机制的consenter，helper， peerEndpoint,发给本地引擎
@@ -632,6 +639,7 @@ func (p *Impl) handleChat(ctx context.Context, stream ChatStream, initiatedStrea
 	defer handler.Stop()
 	for {
 		// 从流中读取数据
+		// stream 为 ConsensusHandler内的peer.MessageHandler即peer.Handler的ChatStream
 		in, err := stream.Recv()
 		// 异常判断
 		if err == io.EOF {
@@ -653,13 +661,17 @@ func (p *Impl) handleChat(ctx context.Context, stream ChatStream, initiatedStrea
 }
 
 //ExecuteTransaction executes transactions decides to do execute in dev or prod mode
+// Impl实现了节点服务， 实现了 MessageHandlerCoordinator 接口
 func (p *Impl) ExecuteTransaction(transaction *pb.Transaction) (response *pb.Response) {
-	// 本地执行或者随机抽取peer执行
+	// 本地执行或者随机抽取peer执行， 如果本身该节点是验证节点直接发给本地共识机制引擎进行协调处理【共识处理】
 	if p.isValidator {
 		response = p.sendTransactionsToLocalEngine(transaction)
 	} else {
 		peerAddresses := p.discHelper.GetRandomNodes(1)
 		// 发送到其它节点，调用其它节点上的ProcessTransaction，转换为调用其它节点上调用ExecuteTransaction
+		// 发送到交易到目标节点，实际上就是创建和目标节点的gRPC连接调用ProcessTransaction
+		// 目标节点的ProcessTransaction方法内会调用ExecuteTransaction，如果其实验证节点本地处理
+		// 不是验证节点再发送到其它节点【gRPC远程调用】，直到找到验证节点，交给验证节点的共识机制引擎处理
 		response = p.SendTransactionsToPeer(peerAddresses[0], transaction)
 	}
 	return response

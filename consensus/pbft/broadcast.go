@@ -30,6 +30,7 @@ type communicator interface {
 	consensus.Inquirer
 }
 
+// 共识插件的广播器，会调用Helper的广播器，最后调用Impl的广播器
 type broadcaster struct {
 	comm communicator
 
@@ -48,6 +49,7 @@ type sendRequest struct {
 
 // 创建新广播员
 func newBroadcaster(self uint64, N int, f int, broadcastTimeout time.Duration, c communicator) *broadcaster {
+	// c 为 consensus.Helper
 	queueSize := 10 // XXX increase after testing
 	// N 网络中验证节点最大数
 	// f 网络中容忍最大错误数
@@ -61,7 +63,7 @@ func newBroadcaster(self uint64, N int, f int, broadcastTimeout time.Duration, c
 		msgChans:         chans,
 		closedCh:         make(chan struct{}),
 	}
-	// 网络中大多N个验证节点，所以创建N个sendReques通道
+	// 网络中最多N个验证节点，所以创建N个sendReques通道
 	for i := 0; i < N; i++ {
 		if uint64(i) == self {
 			continue
@@ -95,8 +97,10 @@ func (b *broadcaster) drainerSend(dest uint64, send *sendRequest, successLastTim
 	defer func() {
 		b.closed.Done()
 	}()
+	// 获取验证节点句柄
 	h, err := getValidatorHandle(dest)
 	if err != nil {
+		// 节点句柄获取失败
 		if successLastTime {
 			logger.Warningf("could not get handle for replica %d", dest)
 		}
@@ -104,6 +108,9 @@ func (b *broadcaster) drainerSend(dest uint64, send *sendRequest, successLastTim
 		return false
 	}
 
+	// comm 为 consensus.Helper 方法 Unicast 调用了Impl的方法
+	// Helper.coordinator 为peer Impl
+	// Impl.Unicast 调用peer.Handler SendMessage
 	err = b.comm.Unicast(send.msg, h)
 	if err != nil {
 		if successLastTime {
@@ -126,11 +133,14 @@ func (b *broadcaster) drainer(dest uint64) {
 		return
 	}
 
+	// 永久循环读取本地msgChans，并发送通过Helper Unicast 再调用 Impl的Unicast发送给节点
 	for {
 		select {
 		case send := <-destChan:
+			// 读取通道destChan到send，并调用drainerSend
 			successLastTime = b.drainerSend(dest, send, successLastTime)
 		case <-b.closedCh:
+			// 读取到关闭通道
 			for {
 				// Drain the message channel to free calling waiters before we shut down
 				select {
@@ -146,8 +156,9 @@ func (b *broadcaster) drainer(dest uint64) {
 }
 
 // 单播一个消息，写入chan
+// 将一个消息写入目标channel
 func (b *broadcaster) unicastOne(msg *pb.Message, dest uint64, wait chan bool) {
-	// 写入一个消息通道
+	// 写入一个消息到本地通道
 	select {
 	case b.msgChans[dest] <- &sendRequest{
 		msg:  msg,
@@ -155,6 +166,7 @@ func (b *broadcaster) unicastOne(msg *pb.Message, dest uint64, wait chan bool) {
 	}:
 	default:
 		// If this channel is full, we must discard the message and flag it as done
+		// 目标channel已满，写入失败，在wait内写入一个false，同时完成数-1
 		wait <- false
 		b.closed.Done()
 	}
@@ -169,22 +181,30 @@ func (b *broadcaster) send(msg *pb.Message, dest *uint64) error {
 
 	var destCount int
 	var required int
+	// 如果dest等于nil则说明为广播发送
 	if dest != nil {
+		// 单播
 		destCount = 1
 		required = 1
 	} else {
+		// 组播
 		destCount = len(b.msgChans)
+		// b.f 网络中容忍最大错误数，则required为最低完成数
 		required = destCount - b.f
 	}
 
+	// 设置了目标个数的布尔channel
 	wait := make(chan bool, destCount)
 
 	if dest != nil {
+		// 新增等待1
 		b.closed.Add(1)
 		b.unicastOne(msg, *dest, wait)
 	} else {
+		// 广播发送
+		// 新增目标个数个等待
 		b.closed.Add(len(b.msgChans))
-		// 所有消息通道循环
+		// 所有消息通道循环，利用单播实现广播
 		for i := range b.msgChans {
 			// 单一传播1个
 			b.unicastOne(msg, i, wait)
@@ -205,10 +225,12 @@ outer:
 			if success {
 				succeeded++
 				if succeeded >= required {
+					// 目标成功数达到
 					break outer
 				}
 			}
 		case <-timer.C:
+			// 超时，有要求数量的反馈，不管成功或者失败
 			for i := i; i < required; i++ {
 				<-wait
 			}

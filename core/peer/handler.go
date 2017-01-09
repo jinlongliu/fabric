@@ -291,12 +291,14 @@ func (d *Handler) HandleMessage(msg *pb.Message) error {
 }
 
 // SendMessage sends a message to the remote PEER through the stream
+// 节点的消息处理器
 func (d *Handler) SendMessage(msg *pb.Message) error {
 	//make sure Sends are serialized. Also make sure everyone uses SendMessage
 	//instead of calling Send directly on the grpc stream
 	d.chatMutex.Lock()
 	defer d.chatMutex.Unlock()
 	peerLogger.Debugf("Sending message to stream of type: %s ", msg.Type)
+	// Handler的ChatStream发送消息
 	err := d.ChatStream.Send(msg)
 	if err != nil {
 		return fmt.Errorf("Error Sending message through ChatStream: %s", err)

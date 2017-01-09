@@ -176,6 +176,7 @@ func serve(args []string) error {
 		logger.Debugf("Running as validating peer - installing consensus %s",
 			viper.GetString("peer.validator.consensus"))
 
+		// helper.GetEngine引擎工厂方法，调用这个获取共识引擎
 		peerServer, err = peer.NewPeerWithEngine(secHelperFunc, helper.GetEngine)
 	} else {
 		// 不采用共识机制，不加载engine，消息处理方法为peer.NewPeerHandler

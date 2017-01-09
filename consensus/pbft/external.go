@@ -58,8 +58,11 @@ type externalEventReceiver struct {
 
 // RecvMsg is called by the stack when a new message is received
 // 实现了Consenter.RecvMsg用户接收消息, 将message转化为事件写入事件总线
+// 这个事件消息在batch中处理
 func (eer *externalEventReceiver) RecvMsg(ocMsg *pb.Message, senderHandle *pb.PeerID) error {
 	// 一个batchMessageEvent事件写入队列,当接收到消息时，构建一个batchMessageEvent写入队列
+	// manager 中SetReceiver 指定接收者，这里指定了 op.manager.SetReceiver(op)  obcBatch
+	// obcBatch 中ProcessEvent处理这些事件
 	eer.manager.Queue() <- batchMessageEvent{
 		msg:    ocMsg,
 		sender: senderHandle,
