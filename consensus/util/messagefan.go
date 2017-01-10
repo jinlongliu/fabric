@@ -55,6 +55,7 @@ func NewMessageFan() *MessageFan {
 // AddFaninChannel is intended to be invoked by Handler to add a channel to be fan-ed in
 // 被处理器调用将channel fanin
 func (fan *MessageFan) AddFaninChannel(channel <-chan *Message) {
+	// 互斥锁锁定
 	fan.lock.Lock()
 	defer fan.lock.Unlock()
 
@@ -70,6 +71,7 @@ func (fan *MessageFan) AddFaninChannel(channel <-chan *Message) {
 	// 将channel加入fan.ins
 	fan.ins = append(fan.ins, channel)
 
+	// 此处使用goroutine执行使得AddFaninChannel调用不用等待下方操作结束
 	go func() {
 		// channel中的消息写入fan.out
 		// for + channel 循环读，当channel关闭时结束
@@ -77,6 +79,7 @@ func (fan *MessageFan) AddFaninChannel(channel <-chan *Message) {
 			fan.out <- msg
 		}
 
+		// 阻塞程序，上述为循环读，上述循环结束时执行下方操作
 		fan.lock.Lock()
 		defer fan.lock.Unlock()
 
