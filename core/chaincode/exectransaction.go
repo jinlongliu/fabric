@@ -30,6 +30,8 @@ import (
 )
 
 //Execute - execute transaction or a query
+// chaincode执行交易
+// 会被helper里面调用
 func Execute(ctxt context.Context, chain *ChaincodeSupport, t *pb.Transaction) ([]byte, *pb.ChaincodeEvent, error) {
 	var err error
 
@@ -49,7 +51,8 @@ func Execute(ctxt context.Context, chain *ChaincodeSupport, t *pb.Transaction) (
 	}
 
 	if t.Type == pb.Transaction_CHAINCODE_DEPLOY {
-		// 调用chaincode supper的Deploy方法
+		// 调用chaincode support的Deploy方法
+		// chain为chaincode support
 		_, err := chain.Deploy(ctxt, t)
 		if err != nil {
 			return nil, nil, fmt.Errorf("Failed to deploy chaincode spec(%s)", err)
@@ -138,6 +141,7 @@ func Execute(ctxt context.Context, chain *ChaincodeSupport, t *pb.Transaction) (
 //succeeded, array element will be nil. returns []byte of state hash or
 //error
 func ExecuteTransactions(ctxt context.Context, cname ChainName, xacts []*pb.Transaction) (succeededTXs []*pb.Transaction, stateHash []byte, ccevents []*pb.ChaincodeEvent, txerrs []error, err error) {
+	// 获取cc名称
 	var chain = GetChain(cname)
 	if chain == nil {
 		// TODO: We should never get here, but otherwise a good reminder to better handle
@@ -145,9 +149,12 @@ func ExecuteTransactions(ctxt context.Context, cname ChainName, xacts []*pb.Tran
 	}
 
 	txerrs = make([]error, len(xacts))
+	// chaincode事件
 	ccevents = make([]*pb.ChaincodeEvent, len(xacts))
+	// 成功交易
 	var succeededTxs = make([]*pb.Transaction, 0)
 	for i, t := range xacts {
+		// 执行交易
 		_, ccevents[i], txerrs[i] = Execute(ctxt, chain, t)
 		if txerrs[i] == nil {
 			succeededTxs = append(succeededTxs, t)
