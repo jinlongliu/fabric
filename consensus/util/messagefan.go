@@ -48,6 +48,7 @@ type MessageFan struct {
 // NewMessageFan will return an initialized MessageFan
 func NewMessageFan() *MessageFan {
 	return &MessageFan{
+		// 只读channel数组
 		ins: []<-chan *Message{},
 		out: make(chan *Message),
 	}
