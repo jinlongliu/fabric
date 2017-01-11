@@ -97,6 +97,7 @@ func GetChaincodePackageBytes(spec *pb.ChaincodeSpec) ([]byte, error) {
 	}
 
 	// 写入文件tar包
+	// 会修改spec.ChaincodeID.Name
 	err = platform.WritePackage(spec, tw)
 	if err != nil {
 		return nil, err
