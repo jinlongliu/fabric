@@ -174,7 +174,11 @@ type ledgerWrapper struct {
 }
 
 type handlerMap struct {
+	// 读写锁
 	sync.RWMutex
+	// 键类型pb.PeerID
+	// 值类型MessageHandler
+	// m 键值对映射
 	m map[pb.PeerID]MessageHandler
 }
 
@@ -222,6 +226,7 @@ func NewPeerWithHandler(secHelperFunc func() crypto.Peer, handlerFact HandlerFac
 	}
 	// 非验证节点的处理方法  peer.NewPeerHandler
 	peer.handlerFactory = handlerFact
+	//
 	peer.handlerMap = &handlerMap{m: make(map[pb.PeerID]MessageHandler)}
 
 	peer.secHelper = secHelperFunc()
@@ -248,6 +253,7 @@ func NewPeerWithEngine(secHelperFunc func() crypto.Peer, engFactory EngineFactor
 	peer = new(Impl)
 	peerNodes := peer.initDiscovery()
 
+	// 初始化处理器映射
 	peer.handlerMap = &handlerMap{m: make(map[pb.PeerID]MessageHandler)}
 
 	peer.isValidator = ValidatorEnabled()
@@ -370,6 +376,7 @@ func (p *Impl) PeersDiscovered(peersMessage *pb.PeersMessage) error {
 	return nil
 }
 
+// 获取消息处理器的句柄
 func getHandlerKey(peerMessageHandler MessageHandler) (*pb.PeerID, error) {
 	peerEndpoint, err := peerMessageHandler.To()
 	if err != nil {
@@ -383,7 +390,9 @@ func getHandlerKeyFromPeerEndpoint(peerEndpoint *pb.PeerEndpoint) *pb.PeerID {
 }
 
 // RegisterHandler register a MessageHandler with this coordinator
+// 注册处理器，操作处理成员handlerMap
 func (p *Impl) RegisterHandler(messageHandler MessageHandler) error {
+	// 处理器的节点句柄
 	key, err := getHandlerKey(messageHandler)
 	if err != nil {
 		return fmt.Errorf("Error registering handler: %s", err)
@@ -394,6 +403,7 @@ func (p *Impl) RegisterHandler(messageHandler MessageHandler) error {
 		// Duplicate, return error
 		return newDuplicateHandlerError(messageHandler)
 	}
+	// 节点句柄作为键，消息处理器作为值
 	p.handlerMap.m[*key] = messageHandler
 	peerLogger.Debugf("registered handler with key: %s", key)
 	return nil
@@ -477,6 +487,7 @@ func (p *Impl) getMessageHandler(receiverHandle *pb.PeerID) (MessageHandler, err
 	p.handlerMap.RLock()
 	defer p.handlerMap.RUnlock()
 	// 从节点的handleMap中取合适的
+	// handlerMap 键为节点句柄id，值为MessageHandler
 	msgHandler, ok := p.handlerMap.m[*receiverHandle]
 	if !ok {
 		return nil, fmt.Errorf("Message handler not found for receiver %s", receiverHandle.Name)
@@ -486,11 +497,14 @@ func (p *Impl) getMessageHandler(receiverHandle *pb.PeerID) (MessageHandler, err
 
 // Unicast sends a message to a specific peer.
 // 会被共识机制引擎的Helper里的Unicast调用
+// msgHandler 为 Handler
 func (p *Impl) Unicast(msg *pb.Message, receiverHandle *pb.PeerID) error {
 	msgHandler, err := p.getMessageHandler(receiverHandle)
 	if err != nil {
 		return err
 	}
+	// 调用Handler的SendMessage 进一步调用 d.ChatStream.Send(msg)
+	// 后续被节点处理器的 HandlerMessage处理
 	err = msgHandler.SendMessage(msg)
 	if err != nil {
 		toPeerEndpoint, _ := msgHandler.To()

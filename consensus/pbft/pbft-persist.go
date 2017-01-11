@@ -23,6 +23,7 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
+// 持久化pre-prepared requests
 func (instance *pbftCore) persistQSet() {
 	var qset []*ViewChange_PQ
 
@@ -33,6 +34,7 @@ func (instance *pbftCore) persistQSet() {
 	instance.persistPQSet("qset", qset)
 }
 
+// 持久化prepared requests
 func (instance *pbftCore) persistPSet() {
 	var pset []*ViewChange_PQ
 
@@ -43,6 +45,7 @@ func (instance *pbftCore) persistPSet() {
 	instance.persistPQSet("pset", pset)
 }
 
+// 持久化
 func (instance *pbftCore) persistPQSet(key string, set []*ViewChange_PQ) {
 	raw, err := proto.Marshal(&PQset{set})
 	if err != nil {
@@ -56,6 +59,7 @@ func (instance *pbftCore) persistPQSet(key string, set []*ViewChange_PQ) {
 }
 
 func (instance *pbftCore) restorePQSet(key string) []*ViewChange_PQ {
+	// key 值pset 和 qset
 	raw, err := instance.consumer.ReadState(key)
 	if err != nil {
 		logger.Debugf("Replica %d could not restore state %s: %s", instance.id, key, err)
@@ -110,23 +114,29 @@ func (instance *pbftCore) persistDelCheckpoint(seqNo uint64) {
 }
 
 func (instance *pbftCore) restoreState() {
+	// 定义内部方法
 	updateSeqView := func(set []*ViewChange_PQ) {
+		// 循环处理
 		for _, e := range set {
+			// 队列内视图值比当前大则置换
 			if instance.view < e.View {
 				instance.view = e.View
 			}
+			// 请求序列比当前大也置换，视图的序列号
 			if instance.seqNo < e.SequenceNumber {
 				instance.seqNo = e.SequenceNumber
 			}
 		}
 	}
 
+	// 恢复PSet prepared请求
 	set := instance.restorePQSet("pset")
 	for _, e := range set {
 		instance.pset[e.SequenceNumber] = e
 	}
 	updateSeqView(set)
 
+	// 恢复QSet pre-prepared请求
 	set = instance.restorePQSet("qset")
 	for _, e := range set {
 		instance.qset[qidx{e.BatchDigest, e.SequenceNumber}] = e
@@ -148,8 +158,10 @@ func (instance *pbftCore) restoreState() {
 		logger.Warningf("Replica %d could not restore reqBatchStore: %s", instance.id, err)
 	}
 
+	// 恢复最后请求序列号
 	instance.restoreLastSeqNo()
 
+	// 恢复状态集合
 	chkpts, err := instance.consumer.ReadStateSet("chkpt.")
 	if err == nil {
 		lowWatermark := instance.lastExec // This is safe because we will round down in moveWatermarks
@@ -177,7 +189,10 @@ func (instance *pbftCore) restoreState() {
 
 func (instance *pbftCore) restoreLastSeqNo() {
 	var err error
+	// getLastSeqNo 从账本获取最后的请求序号
+	// instance.lastExec 最后的请求序号
 	if instance.lastExec, err = instance.consumer.getLastSeqNo(); err != nil {
+		// err 非空，则最后请求为 0
 		logger.Warningf("Replica %d could not restore lastExec: %s", instance.id, err)
 		instance.lastExec = 0
 	}

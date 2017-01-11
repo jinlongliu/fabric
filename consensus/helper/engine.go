@@ -128,6 +128,8 @@ func GetEngine(coord peer.MessageHandlerCoordinator) (peer.Engine, error) {
 		// coord 为peer  Impl
 		engine.helper = NewHelper(coord)
 		// 构建批准者consenter，投票者，有发言权的人
+
+		// consenter 和 helper 互相交换句柄， 目的外部调用内部，内部调用外部
 		engine.consenter = controller.NewConsenter(engine.helper)
 		engine.helper.setConsenter(engine.consenter)
 		engine.peerEndpoint, err = coord.GetPeerEndpoint()
@@ -139,6 +141,7 @@ func GetEngine(coord peer.MessageHandlerCoordinator) (peer.Engine, error) {
 			// The channel never closes, so this should never break
 			// 从consensusFan中获取一个制度Channel，并进行消息处理
 			// for + channel 循环读，当fan.out 关闭时，循环自动结束
+			// channel永不关闭，所以读取从不停止
 			for msg := range engine.consensusFan.GetOutChannel() {
 				engine.consenter.RecvMsg(msg.Msg, msg.Sender)
 			}

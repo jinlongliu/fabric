@@ -53,6 +53,7 @@ type Communicator interface {
 }
 
 // NetworkStack is used to retrieve network info and send messages
+// 网络栈，通信 获取节点信息，句柄
 type NetworkStack interface {
 	Communicator
 	Inquirer
@@ -85,6 +86,7 @@ type LegacyExecutor interface {
 // Executor is intended to eventually supplant the old Executor interface
 // The problem with invoking the calls directly above, is that they must be coordinated
 // with state transfer, to eliminate possible races and ledger corruption
+// 意图代替旧的Executor接口
 type Executor interface {
 	Start()                                                                     // Bring up the resources needed to use this interface
 	Halt()                                                                      // Tear down the resources needed to use this interface
@@ -101,6 +103,7 @@ type LedgerManager interface {
 }
 
 // StatePersistor is used to store consensus state which should survive a process crash
+// 状态持久化接口
 type StatePersistor interface {
 	StoreState(key string, value []byte) error
 	ReadState(key string) ([]byte, error)
@@ -109,6 +112,7 @@ type StatePersistor interface {
 }
 
 // Stack is the set of stack-facing methods available to the consensus plugin
+// 共识插件所有接口
 type Stack interface {
 	NetworkStack
 	SecurityUtils

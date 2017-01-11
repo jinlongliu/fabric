@@ -37,6 +37,7 @@ type PartialStack interface {
 	GetBlockchainInfo() *pb.BlockchainInfo
 }
 
+// 实现了Executor接口
 type coordinatorImpl struct {
 	manager         events.Manager              // Maintains event thread and sends events to the coordinator
 	rawExecutor     PartialStack                // Does the real interaction with the ledger
@@ -47,6 +48,8 @@ type coordinatorImpl struct {
 }
 
 // NewCoordinatorImpl creates a new executor.Coordinator
+// 执行器的协调器，协调器通过处理事件信息来协调
+// 只是一个协调器，区别于mhc  Message Handler Coordinator 消息处理协调器
 func NewImpl(consumer consensus.ExecutionConsumer, rawExecutor PartialStack, stps statetransfer.PartialStack) consensus.Executor {
 	co := &coordinatorImpl{
 		rawExecutor: rawExecutor,
@@ -54,15 +57,18 @@ func NewImpl(consumer consensus.ExecutionConsumer, rawExecutor PartialStack, stp
 		stc:         statetransfer.NewCoordinatorImpl(stps),
 		manager:     events.NewManagerImpl(),
 	}
+	// 设置自身为事件接收器,自身处理事件
 	co.manager.SetReceiver(co)
 	return co
 }
 
 // ProcessEvent is the main event loop for the executor.Coordinator
 // 实现了事件接收器方法
+// 这个方法为实现events.go里的Receiver接口
 func (co *coordinatorImpl) ProcessEvent(event events.Event) events.Event {
 	switch et := event.(type) {
 	case executeEvent:
+		// chaincode transaction交付到这里执行
 		logger.Debug("Executor is processing an executeEvent")
 		if co.skipInProgress {
 			logger.Error("FATAL programming error, attempted to execute a transaction during state transfer")
@@ -72,12 +78,16 @@ func (co *coordinatorImpl) ProcessEvent(event events.Event) events.Event {
 		if !co.batchInProgress {
 			logger.Debug("Starting new transaction batch")
 			co.batchInProgress = true
+			// 调用原始执行器进行调用LegacyExecutor
+			// co作为事务id，会传递到ledger中
 			err := co.rawExecutor.BeginTxBatch(co)
 			_ = err // TODO This should probably panic, see issue 752
 		}
 
+		// 执行交易
 		co.rawExecutor.ExecTxs(co, et.txs)
 
+		// 执行完毕后调用
 		co.consumer.Executed(et.tag)
 	case commitEvent:
 		logger.Debug("Executor is processing an commitEvent")
@@ -152,13 +162,16 @@ func (co *coordinatorImpl) ProcessEvent(event events.Event) events.Event {
 	return nil
 }
 
+// 下列6个方法为实现Executor接口
 // Commit commits whatever outstanding requests have been executed, it is an error to call this without pending executions
 func (co *coordinatorImpl) Commit(tag interface{}, metadata []byte) {
 	co.manager.Queue() <- commitEvent{tag, metadata}
 }
 
 // Execute adds additional executions to the current batch
+// 实现consensus.go 里面接口
 func (co *coordinatorImpl) Execute(tag interface{}, txs []*pb.Transaction) {
+	// 往共识里面写入一个事件，交付自身执行
 	co.manager.Queue() <- executeEvent{tag, txs}
 }
 

@@ -61,6 +61,7 @@ func NewHelper(mhc peer.MessageHandlerCoordinator) *Helper {
 	}
 
 	// 初始化helper的executor
+	// NewImpl 内部初始化了一个事件管理器
 	h.executor = executor.NewImpl(h, h, mhc)
 	return h
 }
@@ -163,7 +164,9 @@ func (h *Helper) Verify(replicaID *pb.PeerID, signature []byte, message []byte) 
 
 // BeginTxBatch gets invoked when the next round
 // of transaction-batch execution begins
+// 实际开始执行账本，会被executor.go调用
 func (h *Helper) BeginTxBatch(id interface{}) error {
+	// 获取到账本，获取Ledger对象
 	ledger, err := ledger.GetLedger()
 	if err != nil {
 		return fmt.Errorf("Failed to get the ledger: %v", err)
@@ -179,6 +182,7 @@ func (h *Helper) BeginTxBatch(id interface{}) error {
 // ExecTxs executes all the transactions listed in the txs array
 // one-by-one. If all the executions are successful, it returns
 // the candidate global state hash, and nil error array.
+// 实际执行账本，会被executor.go调用
 func (h *Helper) ExecTxs(id interface{}, txs []*pb.Transaction) ([]byte, error) {
 	// TODO id is currently ignored, fix once the underlying implementation accepts id
 
@@ -186,6 +190,7 @@ func (h *Helper) ExecTxs(id interface{}, txs []*pb.Transaction) ([]byte, error) 
 	// cxt := context.WithValue(context.Background(), "security", h.coordinator.GetSecHelper())
 	// TODO return directly once underlying implementation no longer returns []error
 
+	// 调用chaincode公开方法ExecuteTransactions执行交易
 	succeededTxs, res, ccevents, txerrs, err := chaincode.ExecuteTransactions(context.Background(), chaincode.DefaultChain, txs)
 
 	h.curBatch = append(h.curBatch, succeededTxs...) // TODO, remove after issue 579
@@ -337,6 +342,7 @@ func (h *Helper) ValidateState() {
 
 // Execute will execute a set of transactions, this may be called in succession
 func (h *Helper) Execute(tag interface{}, txs []*pb.Transaction) {
+	// 调用 consensus.go 里的 Execute接口
 	h.executor.Execute(tag, txs)
 }
 

@@ -43,6 +43,7 @@ func (h *Helper) ReadState(key string) ([]byte, error) {
 }
 
 // ReadStateSet retrieves all key,value pairs where the key starts with prefix
+// 持久化接口实现  StatePersistor 在consensus.go 里面
 func (h *Helper) ReadStateSet(prefix string) (map[string][]byte, error) {
 	db := db.GetDBHandle()
 	prefixRaw := []byte("consensus." + prefix)

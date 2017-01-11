@@ -166,6 +166,7 @@ func (d *Handler) beforeHello(e *fsm.Event) {
 		return
 	}
 	// Store the PeerEndpoint
+	// 处理器存储hello消息的句柄
 	d.ToPeerEndpoint = helloMessage.PeerEndpoint
 	peerLogger.Debugf("Received %s from endpoint=%s", e.Event, helloMessage)
 
@@ -193,6 +194,7 @@ func (d *Handler) beforeHello(e *fsm.Event) {
 		}
 	}
 	// Register
+	// 调用注册处理器，注册Handler为其处理器
 	err = d.Coordinator.RegisterHandler(d)
 	if err != nil {
 		e.Cancel(fmt.Errorf("Error registering Handler: %s", err))
@@ -295,10 +297,12 @@ func (d *Handler) HandleMessage(msg *pb.Message) error {
 func (d *Handler) SendMessage(msg *pb.Message) error {
 	//make sure Sends are serialized. Also make sure everyone uses SendMessage
 	//instead of calling Send directly on the grpc stream
+	// 读写锁，锁定后续发送消息
 	d.chatMutex.Lock()
 	defer d.chatMutex.Unlock()
 	peerLogger.Debugf("Sending message to stream of type: %s ", msg.Type)
 	// Handler的ChatStream发送消息
+	// gRPC相当于发送到远端
 	err := d.ChatStream.Send(msg)
 	if err != nil {
 		return fmt.Errorf("Error Sending message through ChatStream: %s", err)

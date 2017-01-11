@@ -80,6 +80,7 @@ type nullRequestEvent struct{}
 
 // Unless otherwise noted, all methods consume the PBFT thread, and should therefore
 // not rely on PBFT accomplishing any work while that thread is being held
+// 内部栈
 type innerStack interface {
 	broadcast(msgPayload []byte)
 	unicast(msgPayload []byte, receiverID uint64) (err error)
@@ -133,10 +134,10 @@ type pbftCore struct {
 	K             uint64            // checkpoint period
 	logMultiplier uint64            // use this value to calculate log size : k*logMultiplier
 	L             uint64            // log size
-	lastExec      uint64            // last request we executed
+	lastExec      uint64            // last request we executed, 执行的最后一个请求
 	replicaCount  int               // number of replicas; PBFT `|R|`
 	seqNo         uint64            // PBFT "n", strictly monotonic increasing sequence number
-	view          uint64            // current view
+	view          uint64            // current view，视图指所有节点哪个节点作为主节点，每一次主节点更换，视图发生变化
 	chkpts        map[uint64]string // state checkpoints; map lastExec to global hash
 	pset          map[uint64]*ViewChange_PQ
 	qset          map[qidx]*ViewChange_PQ
@@ -150,7 +151,7 @@ type pbftCore struct {
 	timerActive           bool                     // is the timer running?
 	vcResendTimer         events.Timer             // timer triggering resend of a view change
 	newViewTimer          events.Timer             // timeout triggering a view change
-	requestTimeout        time.Duration            // progress timeout for requests
+	requestTimeout        time.Duration            // progress timeout for requests 处理请求超时
 	vcResendTimeout       time.Duration            // timeout before resending view change
 	newViewTimeout        time.Duration            // progress timeout for new views
 	newViewTimerReason    string                   // what triggered the timer
@@ -223,12 +224,16 @@ func newPbftCore(id uint64, config *viper.Viper, consumer innerStack, etf events
 	instance.vcResendTimer = etf.CreateTimer()
 	instance.nullRequestTimer = etf.CreateTimer()
 
+	// 网络中节点数
 	instance.N = config.GetInt("general.N")
+	// 允许错误数
 	instance.f = config.GetInt("general.f")
+	// 算法核心要求错误数小于1/3
 	if instance.f*3+1 > instance.N {
 		panic(fmt.Sprintf("need at least %d enough replicas to tolerate %d byzantine faults, but only %d replicas configured", instance.f*3+1, instance.f, instance.N))
 	}
 
+	// 检查点时间段
 	instance.K = uint64(config.GetInt("general.K"))
 
 	instance.logMultiplier = uint64(config.GetInt("general.logmultiplier"))
@@ -236,10 +241,14 @@ func newPbftCore(id uint64, config *viper.Viper, consumer innerStack, etf events
 		panic("Log multiplier must be greater than or equal to 2")
 	}
 	instance.L = instance.logMultiplier * instance.K // log size
+
+	// 0 disabled, 多少个检查周期，主节点自动循环
 	instance.viewChangePeriod = uint64(config.GetInt("general.viewchangeperiod"))
 
+	// 当前节点是否扮演拜占庭节点，即坏节点
 	instance.byzantine = config.GetBool("general.byzantine")
 
+	// 请求过程超时设置
 	instance.requestTimeout, err = time.ParseDuration(config.GetString("general.timeout.request"))
 	if err != nil {
 		panic(fmt.Errorf("Cannot parse request timeout: %s", err))
@@ -248,6 +257,7 @@ func newPbftCore(id uint64, config *viper.Viper, consumer innerStack, etf events
 	if err != nil {
 		panic(fmt.Errorf("Cannot parse request timeout: %s", err))
 	}
+	// 新视图超时，限时内完成视图切换
 	instance.newViewTimeout, err = time.ParseDuration(config.GetString("general.timeout.viewchange"))
 	if err != nil {
 		panic(fmt.Errorf("Cannot parse new view timeout: %s", err))
@@ -256,12 +266,15 @@ func newPbftCore(id uint64, config *viper.Viper, consumer innerStack, etf events
 	if err != nil {
 		instance.nullRequestTimeout = 0
 	}
+	// 广播超时
 	instance.broadcastTimeout, err = time.ParseDuration(config.GetString("general.timeout.broadcast"))
 	if err != nil {
 		panic(fmt.Errorf("Cannot parse new broadcast timeout: %s", err))
 	}
 
+	// 初始化状态视图处于激活状态
 	instance.activeView = true
+	// 副本数
 	instance.replicaCount = instance.N
 
 	logger.Infof("PBFT type = %T", instance.consumer)
@@ -286,7 +299,9 @@ func newPbftCore(id uint64, config *viper.Viper, consumer innerStack, etf events
 	}
 
 	// init the logs
+	// 跟踪法定证书请求
 	instance.certStore = make(map[msgID]*msgCert)
+	// 跟踪请求批次
 	instance.reqBatchStore = make(map[string]*RequestBatch)
 	instance.checkpointStore = make(map[Checkpoint]bool)
 	instance.chkpts = make(map[uint64]string)
@@ -304,9 +319,11 @@ func newPbftCore(id uint64, config *viper.Viper, consumer innerStack, etf events
 	instance.outstandingReqBatches = make(map[string]*RequestBatch)
 	instance.missingReqBatches = make(map[string]bool)
 
+	// 恢复状态, 从数据库或者文件？
 	instance.restoreState()
 
-	instance.viewChangeSeqNo = ^uint64(0) // infinity
+	instance.viewChangeSeqNo = ^uint64(0) // infinity 无穷大
+	// 更新视图变更序列号
 	instance.updateViewChangeSeqNo()
 
 	return instance
@@ -333,11 +350,13 @@ func (instance *pbftCore) ProcessEvent(e events.Event) events.Event {
 	case pbftMessageEvent:
 		msg := et
 		logger.Debugf("Replica %d received incoming message from %v", instance.id, msg.sender)
+		// 将PbftMessage内部消息，反馈循环处理
 		next, err := instance.recvMsg(msg.msg, msg.sender)
 		if err != nil {
 			break
 		}
 		return next
+	//	这个消息是通过时间处理循环获得
 	case *RequestBatch:
 		err = instance.recvRequestBatch(et)
 	case *PrePrepare:
@@ -426,7 +445,10 @@ func (instance *pbftCore) ProcessEvent(e events.Event) events.Event {
 // =============================================================================
 
 // Given a certain view n, what is the expected primary?
+// 由视图计算主节点序号
+// n为当前视图op.pbft.view 无符号64位整数
 func (instance *pbftCore) primary(n uint64) uint64 {
+	// 视图 模处理 副本数
 	return n % uint64(instance.replicaCount)
 }
 
@@ -610,17 +632,23 @@ func (instance *pbftCore) recvMsg(msg *Message, senderID uint64) (interface{}, e
 }
 
 func (instance *pbftCore) recvRequestBatch(reqBatch *RequestBatch) error {
+	// 哈希摘要
 	digest := hash(reqBatch)
 	logger.Debugf("Replica %d received request batch %s", instance.id, digest)
 
+	// 只要作为键
 	instance.reqBatchStore[digest] = reqBatch
 	instance.outstandingReqBatches[digest] = reqBatch
+	// 批量请求持久化
 	instance.persistRequestBatch(digest)
+	// 如果视图可用，开始计时器
 	if instance.activeView {
 		instance.softStartTimer(instance.requestTimeout, fmt.Sprintf("new request batch %s", digest))
 	}
 	if instance.primary(instance.view) == instance.id && instance.activeView {
+		// 如果当前节点为主节点则请求计时器停止
 		instance.nullRequestTimer.Stop()
+		// 进行pre-parepare状态
 		instance.sendPrePrepare(reqBatch, digest)
 	} else {
 		logger.Debugf("Replica %d is backup, not sending pre-prepare for request batch %s", instance.id, digest)
@@ -631,10 +659,13 @@ func (instance *pbftCore) recvRequestBatch(reqBatch *RequestBatch) error {
 func (instance *pbftCore) sendPrePrepare(reqBatch *RequestBatch, digest string) {
 	logger.Debugf("Replica %d is primary, issuing pre-prepare for request batch %s", instance.id, digest)
 
+	// 请求序号+1
 	n := instance.seqNo + 1
+	// 检查同样请求摘要的pre-prepare
 	for _, cert := range instance.certStore { // check for other PRE-PREPARE for same digest, but different seqNo
 		if p := cert.prePrepare; p != nil {
 			if p.View == instance.view && p.SequenceNumber != n && p.BatchDigest == digest && digest != "" {
+				// 序号不同
 				logger.Infof("Other pre-prepare found with same digest but different seqNo: %d instead of %d", p.SequenceNumber, n)
 				return
 			}
@@ -647,6 +678,7 @@ func (instance *pbftCore) sendPrePrepare(reqBatch *RequestBatch, digest string) 
 		return
 	}
 
+	// 视图发生变化，当前视图陈旧，取消发送pre-prepare
 	if n > instance.viewChangeSeqNo {
 		logger.Info("Primary %d about to switch to next primary, not sending pre-prepare with seqno=%d", instance.id, n)
 		return
@@ -654,6 +686,7 @@ func (instance *pbftCore) sendPrePrepare(reqBatch *RequestBatch, digest string) 
 
 	logger.Debugf("Primary %d broadcasting pre-prepare for view=%d/seqNo=%d and digest %s", instance.id, instance.view, n, digest)
 	instance.seqNo = n
+	// 构建一个preprepare状态，pre-prepare由主节点发送，所以ReplicaId为主节点id
 	preprep := &PrePrepare{
 		View:           instance.view,
 		SequenceNumber: n,
@@ -661,11 +694,18 @@ func (instance *pbftCore) sendPrePrepare(reqBatch *RequestBatch, digest string) 
 		RequestBatch:   reqBatch,
 		ReplicaId:      instance.id,
 	}
+	// 获取当前序号的证书
 	cert := instance.getCert(instance.view, n)
+	// 把当前状态放入证书
 	cert.prePrepare = preprep
+	// 证书摘要
 	cert.digest = digest
+	// 持久化pre-prepare
 	instance.persistQSet()
+	// 内部广播， 后续先序列化后，再分装为BatchMessage{Payload: &BatchMessage_PbftMessage{PbftMessage: msgPayload}}
+	// 消息类型 PrePrepare marshal之后作为BatchMessage的payload，再把BatchMessage marshal之后作为共识消息的payload
 	instance.innerBroadcast(&Message{Payload: &Message_PrePrepare{PrePrepare: preprep}})
+	// 主节点不需要发送prepare状态直接commit
 	instance.maybeSendCommit(digest, instance.view, n)
 }
 
@@ -700,19 +740,24 @@ outer:
 }
 
 func (instance *pbftCore) recvPrePrepare(preprep *PrePrepare) error {
+	// 各节点接收到PrePrepare消息
+	// 日志输出
 	logger.Debugf("Replica %d received pre-prepare from replica %d for view=%d/seqNo=%d",
 		instance.id, preprep.ReplicaId, preprep.View, preprep.SequenceNumber)
 
+	// 视图不可用返回
 	if !instance.activeView {
 		logger.Debugf("Replica %d ignoring pre-prepare as we are in a view change", instance.id)
 		return nil
 	}
 
+	// pre-prepare的ReplicaId应该为主节点id，如果不是说明主节点发生变化返回
 	if instance.primary(instance.view) != preprep.ReplicaId {
 		logger.Warningf("Pre-prepare from other than primary: got %d, should be %d", preprep.ReplicaId, instance.primary(instance.view))
 		return nil
 	}
 
+	// 序列号合法
 	if !instance.inWV(preprep.View, preprep.SequenceNumber) {
 		if preprep.SequenceNumber != instance.h && !instance.skipInProgress {
 			logger.Warningf("Replica %d pre-prepare view different, or sequence number outside watermarks: preprep.View %d, expected.View %d, seqNo %d, low-mark %d", instance.id, preprep.View, instance.primary(instance.view), preprep.SequenceNumber, instance.h)
@@ -724,12 +769,15 @@ func (instance *pbftCore) recvPrePrepare(preprep *PrePrepare) error {
 		return nil
 	}
 
+	// 请求号大于当前节点的序列，发送视图更改
 	if preprep.SequenceNumber > instance.viewChangeSeqNo {
 		logger.Info("Replica %d received pre-prepare for %d, which should be from the next primary", instance.id, preprep.SequenceNumber)
 		instance.sendViewChange()
 		return nil
 	}
 
+	// 检验pre-prepare的摘要，如果不符合sendViewChange
+	// sendViewChange 实质上是更换主节点
 	cert := instance.getCert(preprep.View, preprep.SequenceNumber)
 	if cert.digest != "" && cert.digest != preprep.BatchDigest {
 		logger.Warningf("Pre-prepare found for same view/seqNo but different digest: received %s, stored %s", preprep.BatchDigest, cert.digest)
@@ -741,6 +789,8 @@ func (instance *pbftCore) recvPrePrepare(preprep *PrePrepare) error {
 	cert.digest = preprep.BatchDigest
 
 	// Store the request batch if, for whatever reason, we haven't received it from an earlier broadcast
+	// 保存批次请求，之前可能未接受到广播消息
+	// instance.reqBatchStore[preprep.BatchDigest] 本地查询 ok 为false 则 !ok为真，执行下方函数体
 	if _, ok := instance.reqBatchStore[preprep.BatchDigest]; !ok && preprep.BatchDigest != "" {
 		digest := hash(preprep.GetRequestBatch())
 		if digest != preprep.BatchDigest {
@@ -753,20 +803,28 @@ func (instance *pbftCore) recvPrePrepare(preprep *PrePrepare) error {
 		instance.persistRequestBatch(digest)
 	}
 
+	// 开始一个新计时
 	instance.softStartTimer(instance.requestTimeout, fmt.Sprintf("new pre-prepare for request batch %s", preprep.BatchDigest))
 	instance.nullRequestTimer.Stop()
 
+	// 如果当前节点非主节点，当前节点的prePrepared没有问题，同时未发送Prepare，则执行下方函数体
 	if instance.primary(instance.view) != instance.id && instance.prePrepared(preprep.BatchDigest, preprep.View, preprep.SequenceNumber) && !cert.sentPrepare {
+		// 日志
 		logger.Debugf("Backup %d broadcasting prepare for view=%d/seqNo=%d", instance.id, preprep.View, preprep.SequenceNumber)
+		// 构建Prepare，prepare为自身id
 		prep := &Prepare{
 			View:           preprep.View,
 			SequenceNumber: preprep.SequenceNumber,
 			BatchDigest:    preprep.BatchDigest,
 			ReplicaId:      instance.id,
 		}
+		// 置为已发送状态
 		cert.sentPrepare = true
+		// 持久化
 		instance.persistQSet()
+		// 本身处理Prepare
 		instance.recvPrepare(prep)
+		// Prepare广播
 		return instance.innerBroadcast(&Message{Payload: &Message_Prepare{Prepare: prep}})
 	}
 
@@ -791,34 +849,44 @@ func (instance *pbftCore) recvPrepare(prep *Prepare) error {
 		}
 		return nil
 	}
+	// 以上各种判断
 
 	cert := instance.getCert(prep.View, prep.SequenceNumber)
 
+
 	for _, prevPrep := range cert.prepare {
 		if prevPrep.ReplicaId == prep.ReplicaId {
+			// 当前prepare已经接收过忽略
 			logger.Warningf("Ignoring duplicate prepare from %d", prep.ReplicaId)
 			return nil
 		}
 	}
+	// 加入cert并持久化
 	cert.prepare = append(cert.prepare, prep)
 	instance.persistPSet()
 
+	// 发送commit
 	return instance.maybeSendCommit(prep.BatchDigest, prep.View, prep.SequenceNumber)
 }
 
-//
+// 发送commit，各节点确认主节点的提议
 func (instance *pbftCore) maybeSendCommit(digest string, v uint64, n uint64) error {
 	cert := instance.getCert(v, n)
+	// 为发送过commit，prepared状态没问题
 	if instance.prepared(digest, v, n) && !cert.sentCommit {
 		logger.Debugf("Replica %d broadcasting commit for view=%d/seqNo=%d",
 			instance.id, v, n)
+		// 构建commit，ReplicaId为自身id，不好序列号、视图，批请求摘要
+		// 该只要为prepare中数据
 		commit := &Commit{
 			View:           v,
 			SequenceNumber: n,
 			BatchDigest:    digest,
 			ReplicaId:      instance.id,
 		}
+		// 更改发送状态
 		cert.sentCommit = true
+		// 自身直接接受commit，其它的广播
 		instance.recvCommit(commit)
 		return instance.innerBroadcast(&Message{&Message_Commit{commit}})
 	}
@@ -846,6 +914,8 @@ func (instance *pbftCore) recvCommit(commit *Commit) error {
 			return nil
 		}
 	}
+	// 异常判断
+
 	cert.commit = append(cert.commit, commit)
 
 	if instance.committed(commit.BatchDigest, commit.View, commit.SequenceNumber) {
@@ -853,10 +923,12 @@ func (instance *pbftCore) recvCommit(commit *Commit) error {
 		instance.lastNewViewTimeout = instance.newViewTimeout
 		delete(instance.outstandingReqBatches, commit.BatchDigest)
 
+		// 如果确认确认没有问题，执行未发生的请求
 		instance.executeOutstanding()
 
 		if commit.SequenceNumber == instance.viewChangeSeqNo {
 			logger.Infof("Replica %d cycling view for seqNo=%d", instance.id, commit.SequenceNumber)
+			// 如果序号等于后一个，则发起视图变更
 			instance.sendViewChange()
 		}
 	}
@@ -912,12 +984,15 @@ func (instance *pbftCore) retryStateTransfer(optional *stateUpdateTarget) {
 
 func (instance *pbftCore) executeOutstanding() {
 	if instance.currentExec != nil {
+		// 当前节点是否在执行请求
 		logger.Debugf("Replica %d not attempting to executeOutstanding because it is currently executing %d", instance.id, *instance.currentExec)
 		return
 	}
 	logger.Debugf("Replica %d attempting to executeOutstanding", instance.id)
 
+	// 执行certStore
 	for idx := range instance.certStore {
+		// 每次执行一个
 		if instance.executeOne(idx) {
 			break
 		}
@@ -942,7 +1017,9 @@ func (instance *pbftCore) executeOne(idx msgID) bool {
 
 	// we now have the right sequence number that doesn't create holes
 
+	// 证书摘要
 	digest := cert.digest
+	// 获取批量请求
 	reqBatch := instance.reqBatchStore[digest]
 
 	if !instance.committed(digest, idx.v, idx.n) {
@@ -950,6 +1027,7 @@ func (instance *pbftCore) executeOne(idx msgID) bool {
 	}
 
 	// we have a commit certificate for this request batch
+	// 提交的证书批准对于某一个批请求
 	currentExec := idx.n
 	instance.currentExec = &currentExec
 
@@ -961,7 +1039,9 @@ func (instance *pbftCore) executeOne(idx msgID) bool {
 	} else {
 		logger.Infof("Replica %d executing/committing request batch for view=%d/seqNo=%d and digest %s",
 			instance.id, idx.v, idx.n, digest)
+		// 同步执行
 		// synchronously execute, it is the other side's responsibility to execute in the background if needed
+		// batch.go  obcBatch实现execute
 		instance.consumer.execute(idx.n, reqBatch)
 	}
 	return true
@@ -1284,7 +1364,9 @@ func (instance *pbftCore) recvReturnRequestBatch(reqBatch *RequestBatch) events.
 
 // Marshals a Message and hands it to the Stack. If toSelf is true,
 // the message is also dispatched to the local instance's RecvMsgSync.
+// 内部广播
 func (instance *pbftCore) innerBroadcast(msg *Message) error {
+	// 序列化消息转为字节
 	msgRaw, err := proto.Marshal(msg)
 	if err != nil {
 		return fmt.Errorf("Cannot marshal message %s", err)
@@ -1301,6 +1383,7 @@ func (instance *pbftCore) innerBroadcast(msg *Message) error {
 
 	// testing byzantine fault.
 	if doByzantine {
+		// 测试拜占庭不进行广播
 		rand2 := rand.New(rand.NewSource(time.Now().UnixNano()))
 		ignoreidx := rand2.Intn(instance.N)
 		for i := 0; i < instance.N; i++ {
@@ -1311,6 +1394,8 @@ func (instance *pbftCore) innerBroadcast(msg *Message) error {
 			}
 		}
 	} else {
+		// batch.go line 198
+		// 封装为BatchMessage payload 为marshal之后的PrePrepare消息
 		instance.consumer.broadcast(msgRaw)
 	}
 	return nil

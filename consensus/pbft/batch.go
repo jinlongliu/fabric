@@ -31,8 +31,9 @@ import (
 )
 // open block chain Batch???
 // 实现了接口Receiver的方法ProcessEvent
+// obc批次处理，一批一批处理
 type obcBatch struct {
-	obcGeneric
+	obcGeneric  // 基础公共
 	externalEventReceiver
 	pbft        *pbftCore
 	broadcaster *broadcaster
@@ -48,6 +49,7 @@ type obcBatch struct {
 	incomingChan chan *batchMessage // Queues messages for processing by main thread
 	idleChan     chan struct{}      // Idle channel, to be removed
 
+	// 存储未解决，行将发生的请求
 	reqStore *requestStore // Holds the outstanding and pending requests
 
 	deduplicator *deduplicator
@@ -86,13 +88,16 @@ func newObcBatch(id uint64, config *viper.Viper, stack consensus.Stack) *obcBatc
 	// 设置事件管理器的适配器
 	op.manager.SetReceiver(op)
 	etf := events.NewTimerFactoryImpl(op.manager)
+	// 创建PbftCore算法核心
 	op.pbft = newPbftCore(id, config, op, etf)
+	// 启动事件管理器，eventLoop 事件循环，调用接收器的ProcessEvent处理
 	op.manager.Start()
 	blockchainInfoBlob := stack.GetBlockchainInfoBlob()
-	// 外部事件接收器，将外部消息转化为事件
+	// 外部事件接收器，将外部消息转化为事件消息
 	op.externalEventReceiver.manager = op.manager
 	// broadcaster 广播员管理各节点的消息通道，有通信接口成员可以广播，单播获取节点信息，节点句柄
 	// stack 为 consensus.Helper
+	// N 验证节点数  f 容忍错误数量
 	op.broadcaster = newBroadcaster(id, op.pbft.N, op.pbft.f, op.pbft.broadcastTimeout, stack)
 	op.manager.Queue() <- workEvent(func() {
 		op.pbft.stateTransfer(&stateUpdateTarget{
@@ -146,10 +151,16 @@ func (op *obcBatch) submitToLeader(req *Request) events.Event {
 	// Broadcast the request to the network, in case we're in the wrong view
 	// 将包含时间戳、tx、pbft.id的req广播消息
 	op.broadcastMsg(&BatchMessage{Payload: &BatchMessage_Request{Request: req}})
+	// 日志输出
 	op.logAddTxFromRequest(req)
+	// 请求存入outstanding，未发生请求
 	op.reqStore.storeOutstanding(req)
+	// 设置计时器
 	op.startTimerIfOutstandingRequests()
+	// op.pbft.activeView  初始化时为true代表此时视图处于激活状态
+	// 如果视图处于激活状态，且当前节点为主节点，领导处理请求。
 	if op.pbft.primary(op.pbft.view) == op.pbft.id && op.pbft.activeView {
+		// 如果当前节点为主节点，则引导处理请求，开始一次PBFT共识过程
 		return op.leaderProcReq(req)
 	}
 	return nil
@@ -183,7 +194,11 @@ func (op *obcBatch) unicastMsg(msg *BatchMessage, receiverID uint64) {
 // =============================================================================
 
 // multicast a message to all replicas
+// 被innerBroadcast调用
 func (op *obcBatch) broadcast(msgPayload []byte) {
+	// 调用共识机制广播器，广播之前先封装为BatchMessage，再封装为共识消息，实质消息类型为 PbftMessage
+	// BatchMessage{Payload: &BatchMessage_PbftMessage{PbftMessage: msgPayload}}
+	// BatchMessage marshal之后作为共识消息的payload
 	op.broadcaster.Broadcast(op.wrapMessage(msgPayload))
 }
 
@@ -209,7 +224,9 @@ func (op *obcBatch) verify(senderID uint64, signature []byte, message []byte) er
 func (op *obcBatch) execute(seqNo uint64, reqBatch *RequestBatch) {
 	var txs []*pb.Transaction
 	for _, req := range reqBatch.GetBatch() {
+		// 获取交易
 		tx := &pb.Transaction{}
+		// 交易Unmarshal, peer.go Impl.sendTransactionsToLocalEngine() 里面marshal的
 		if err := proto.Unmarshal(req.Payload, tx); err != nil {
 			logger.Warningf("Batch replica %d could not unmarshal transaction %s", op.pbft.id, err)
 			continue
@@ -218,30 +235,41 @@ func (op *obcBatch) execute(seqNo uint64, reqBatch *RequestBatch) {
 		if outstanding, pending := op.reqStore.remove(req); !outstanding || !pending {
 			logger.Debugf("Batch replica %d missing transaction %s outstanding=%v, pending=%v", op.pbft.id, tx.Txid, outstanding, pending)
 		}
+		// 组合所有交易
 		txs = append(txs, tx)
+		// deduplicator 复印机，记录请求时间和执行时间
 		op.deduplicator.Execute(req)
 	}
 	meta, _ := proto.Marshal(&Metadata{seqNo})
 	logger.Debugf("Batch replica %d received exec for seqNo %d containing %d transactions", op.pbft.id, seqNo, len(txs))
+	// consensus.go 里面Execute接口
+	// 实现
 	op.stack.Execute(meta, txs) // This executes in the background, we will receive an executedEvent once it completes
 }
 
 // =============================================================================
 // functions specific to batch mode
 // =============================================================================
-
+// 此方法主节点调用
 func (op *obcBatch) leaderProcReq(req *Request) events.Event {
 	// XXX check req sig
+	// 请求进行哈希摘要，req pbft内部请求，其payload为交易，只是日志输出，未存储留作后续处理
 	digest := hash(req)
 	logger.Debugf("Batch primary %d queueing new request %s", op.pbft.id, digest)
+	// 请求加入批处理队列
 	op.batchStore = append(op.batchStore, req)
+	// 将请求方法pending队列，即将发生请求
 	op.reqStore.storePending(req)
 
 	if !op.batchTimerActive {
+		// 即将发生请求加入后开始batch计时
 		op.startBatchTimer()
 	}
 
+	// general.batchsize 默认500，测试时设置为1
 	if len(op.batchStore) >= op.batchSize {
+		// 如果batch队列数量大于某个值则发送batch处理，进行共识
+		// 返回事件
 		return op.sendBatch()
 	}
 
@@ -255,7 +283,9 @@ func (op *obcBatch) sendBatch() events.Event {
 		return nil
 	}
 
+	// 请求数组
 	reqBatch := &RequestBatch{Batch: op.batchStore}
+	// 队列置空
 	op.batchStore = nil
 	logger.Infof("Creating batch with %d requests", len(reqBatch.Batch))
 	return reqBatch
@@ -278,7 +308,7 @@ func (op *obcBatch) txToReq(tx []byte) *Request {
 func (op *obcBatch) processMessage(ocMsg *pb.Message, senderHandle *pb.PeerID) events.Event {
 	if ocMsg.Type == pb.Message_CHAIN_TRANSACTION {
 		// 部署chaincode交易消息
-		// Payload为tx，转换为req 里面包含时间戳，tx，pbft.id
+		// Payload为tx，转换为req 里面包含时间戳，tx，pbft.id(副本id)
 		req := op.txToReq(ocMsg.Payload)
 		// 后续会转化为pb.Message_CONSENSUS消息进行广播
 		return op.submitToLeader(req)
@@ -291,7 +321,11 @@ func (op *obcBatch) processMessage(ocMsg *pb.Message, senderHandle *pb.PeerID) e
 
 	// 创建一个BatchMessage
 	batchMsg := &BatchMessage{}
+	// 转为共识消息拳法转回来，共识的
 	// ocMsg.Payload 里的转化为 BatchMessage
+	// ocMsg 为消息，其payload 为 BatchMessage
+	// BatchMessage_Request
+	// BatchMessage_PbftMessage
 	err := proto.Unmarshal(ocMsg.Payload, batchMsg)
 	if err != nil {
 		logger.Errorf("Error unmarshaling message: %s", err)
@@ -299,29 +333,39 @@ func (op *obcBatch) processMessage(ocMsg *pb.Message, senderHandle *pb.PeerID) e
 	}
 
 	if req := batchMsg.GetRequest(); req != nil {
+		// 类型为BatchMessage_Request才能获取到值
+		// req非空
 		if !op.deduplicator.IsNew(req) {
 			logger.Warningf("Replica %d ignoring request as it is too old", op.pbft.id)
 			return nil
 		}
-
+		// 日志
 		op.logAddTxFromRequest(req)
+		// pbft请求加入未发生请求
 		op.reqStore.storeOutstanding(req)
 		if (op.pbft.primary(op.pbft.view) == op.pbft.id) && op.pbft.activeView {
+			// 如果当前节点为主节点，则引导处理请求，开始一次PBFT共识过程
+			// 如果满足批处理数量要求，返回请求数组  RequestBatch， ProcessEvent循环处理
 			return op.leaderProcReq(req)
 		}
+		// 未将发生请求计时
 		op.startTimerIfOutstandingRequests()
 		return nil
 	} else if pbftMsg := batchMsg.GetPbftMessage(); pbftMsg != nil {
+		// 类型为BatchMessage_PbftMessage才能获取到值
+		// BatchMessage_PbftMessage 里面分装的PrePrepare
 		senderID, err := getValidatorID(senderHandle) // who sent this?
 		if err != nil {
 			panic("Cannot map sender's PeerID to a valid replica ID")
 		}
 		msg := &Message{}
+		// 转为原始的PrePrepare消息，并发送pbftMessageEvent
 		err = proto.Unmarshal(pbftMsg, msg)
 		if err != nil {
 			logger.Errorf("Error unpacking payload from message: %s", err)
 			return nil
 		}
+		// 返回事件消息 pbftMessage
 		return pbftMessageEvent{
 			msg:    msg,
 			sender: senderID,
@@ -376,6 +420,7 @@ func (op *obcBatch) ProcessEvent(event events.Event) events.Event {
 	logger.Debugf("Replica %d batch main thread looping", op.pbft.id)
 	switch et := event.(type) {
 	case batchMessageEvent:
+		// 所有共识消息都会转为batchMessage其msg为共识消息
 		ocMsg := et
 		return op.processMessage(ocMsg.msg, ocMsg.sender)
 	case executedEvent:
@@ -446,6 +491,11 @@ func (op *obcBatch) ProcessEvent(event events.Event) events.Event {
 		op.reqStore = newRequestStore()
 		return op.pbft.ProcessEvent(event)
 	default:
+		// 非上述事件，交给pbft-core.go的ProcessEvent
+		// RequestBatch 不在上述之列
+		// pbftMessageEvent 不在上述之列
+		// PbftMessage 不在上述之列
+		// PrePrepare 不在上述之列
 		return op.pbft.ProcessEvent(event)
 	}
 
@@ -467,6 +517,7 @@ func (op *obcBatch) stopBatchTimer() {
 // Wraps a payload into a batch message, packs it and wraps it into
 // a Fabric message. Called by broadcast before transmission.
 func (op *obcBatch) wrapMessage(msgPayload []byte) *pb.Message {
+	// 分装为BatchMessage_PbftMessage类型的
 	batchMsg := &BatchMessage{Payload: &BatchMessage_PbftMessage{PbftMessage: msgPayload}}
 	packedBatchMsg, _ := proto.Marshal(batchMsg)
 	ocMsg := &pb.Message{

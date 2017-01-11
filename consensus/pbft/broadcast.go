@@ -159,6 +159,7 @@ func (b *broadcaster) drainer(dest uint64) {
 // 将一个消息写入目标channel
 func (b *broadcaster) unicastOne(msg *pb.Message, dest uint64, wait chan bool) {
 	// 写入一个消息到本地通道
+	// 后续会从本地一个一个调用drainer  drainerSend  Unicast发送
 	select {
 	case b.msgChans[dest] <- &sendRequest{
 		msg:  msg,

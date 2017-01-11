@@ -63,6 +63,7 @@ func (eer *externalEventReceiver) RecvMsg(ocMsg *pb.Message, senderHandle *pb.Pe
 	// 一个batchMessageEvent事件写入队列,当接收到消息时，构建一个batchMessageEvent写入队列
 	// manager 中SetReceiver 指定接收者，这里指定了 op.manager.SetReceiver(op)  obcBatch
 	// obcBatch 中ProcessEvent处理这些事件
+	// 所有共识消息的整体转为batchMessageEvent的ocMsg
 	eer.manager.Queue() <- batchMessageEvent{
 		msg:    ocMsg,
 		sender: senderHandle,

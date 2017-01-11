@@ -31,6 +31,7 @@ func init() {
 }
 
 // Message encapsulates an OpenchainMessage with sender information
+// 结构类似 batchMessage ，一个消息，一个发送者
 type Message struct {
 	Msg    *pb.Message
 	Sender *pb.PeerID

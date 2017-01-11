@@ -55,6 +55,7 @@ func (d *deduplicator) Request(req *Request) bool {
 // replica.  If the request is older than any previously executed
 // request from the same replica, Execute() will return false,
 // indicating a stale request.
+// 只处理请求时间和执行时间
 func (d *deduplicator) Execute(req *Request) bool {
 	reqTime := time.Unix(req.Timestamp.Seconds, int64(req.Timestamp.Nanos))
 	if !reqTime.After(d.execTimestamps[req.ReplicaId]) {

@@ -96,10 +96,12 @@ func NewConsensusHandler(coord peer.MessageHandlerCoordinator,
 func (handler *ConsensusHandler) HandleMessage(msg *pb.Message) error {
 	// 节点消息Message_CHAIN_TRANSACTION后续会转化为共识消息，交给共识插件处理
 	if msg.Type == pb.Message_CONSENSUS {
+		// 获取对端的id
 		senderPE, _ := handler.To()
 		select {
 		// 共识消息写入consenterChan
 		// 写入fan.ins 转为只读  fan.out, 在consensus.consenter中处理 externalEventReceiver RecvMsg
+		// consensusFan 会被复制到另外channel调用RecvMsg处理，相当于交给共识机制处理
 		case handler.consenterChan <- &util.Message{
 			Msg:    msg,
 			Sender: senderPE.ID,

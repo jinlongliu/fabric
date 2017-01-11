@@ -5,18 +5,21 @@
 #
 #   - List all algorithm-specific properties here.
 #   - Nest keys where appropriate, and sort alphabetically for easier parsing.
-#
+#   pbft配置文件
 ################################################################################
 general:
 
     # Operational mode: currently only batch ( this value is case-insensitive)
+    # 批处理模式： 一批次处理若干交易
     mode: batch
 
     # Maximum number of validators/replicas we expect in the network
     # Keep the "N" in quotes, or it will be interpreted as "false".
+    # 验证节点数，或者副本数
     "N": 4
 
     # Number of byzantine nodes we will tolerate
+    # 能够容忍的拜占庭节点，即错误或者坏节点数
     f: 1
 
     # Checkpoint period is the maximum number of pbft requests that must be
@@ -35,12 +38,14 @@ general:
     batchsize: 500
 
     # Whether the replica should act as a byzantine one; useful for debugging on testnets
+    # 节点是否扮演拜占庭节点，测试用
     byzantine: false
 
     # After how many checkpoint periods the primary gets cycled automatically.  Set to 0 to disable.
     viewchangeperiod: 0
 
     # Timeouts
+    # 超时设置
     timeout:
 
         # Send a pre-prepare if there are pending requests, batchsize isn't reached yet,
@@ -51,6 +56,7 @@ general:
         request: 2s
 
         # How long may a view change take
+        # 2s内完成视图切换否则超时
         viewchange: 2s
 
         # How long to wait for a view change quorum before resending (the same) view change

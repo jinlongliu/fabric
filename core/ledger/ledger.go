@@ -78,6 +78,7 @@ var (
 )
 
 // Ledger - the struct for openchain ledger
+// 账本，会被helper里面调用处理账本
 type Ledger struct {
 	blockchain *blockchain
 	state      *state.State

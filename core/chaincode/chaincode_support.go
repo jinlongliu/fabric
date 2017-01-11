@@ -642,6 +642,7 @@ func createQueryMessage(txid string, cMsg *pb.ChaincodeInput) (*pb.ChaincodeMess
 }
 
 // Execute executes a transaction and waits for it to complete until a timeout value.
+// 执行交易
 func (chaincodeSupport *ChaincodeSupport) Execute(ctxt context.Context, chaincode string, msg *pb.ChaincodeMessage, timeout time.Duration, tx *pb.Transaction) (*pb.ChaincodeMessage, error) {
 	chaincodeSupport.runningChaincodes.Lock()
 	//we expect the chaincode to be running... sanity check
