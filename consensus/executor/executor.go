@@ -84,7 +84,7 @@ func (co *coordinatorImpl) ProcessEvent(event events.Event) events.Event {
 			_ = err // TODO This should probably panic, see issue 752
 		}
 
-		// 执行交易
+		// 执行交易,调用Helper
 		co.rawExecutor.ExecTxs(co, et.txs)
 
 		// 执行完毕后调用

@@ -151,7 +151,7 @@ func ExecuteTransactions(ctxt context.Context, cname ChainName, xacts []*pb.Tran
 	txerrs = make([]error, len(xacts))
 	// chaincode事件
 	ccevents = make([]*pb.ChaincodeEvent, len(xacts))
-	// 成功交易
+	// 创建成功交易数组
 	var succeededTxs = make([]*pb.Transaction, 0)
 	for i, t := range xacts {
 		// 执行交易

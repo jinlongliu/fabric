@@ -74,6 +74,7 @@ type Client interface {
 }
 
 // Peer is an entity able to verify transactions
+// 接口定义， 加密节点
 type Peer interface {
 	Node
 

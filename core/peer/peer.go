@@ -229,6 +229,7 @@ func NewPeerWithHandler(secHelperFunc func() crypto.Peer, handlerFact HandlerFac
 	//
 	peer.handlerMap = &handlerMap{m: make(map[pb.PeerID]MessageHandler)}
 
+	// 获取安全帮助对象，secHelper函数接口类型
 	peer.secHelper = secHelperFunc()
 
 	// Install security object for peer
@@ -713,6 +714,7 @@ func (p *Impl) newHelloMessage() (*pb.HelloMessage, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Error creating hello message, error getting block chain info: %s", err)
 	}
+	// HelloMessage 节点信息，区块链信息
 	return &pb.HelloMessage{PeerEndpoint: endpoint, BlockchainInfo: blockChainInfo}, nil
 }
 
@@ -805,17 +807,21 @@ func (p *Impl) PutBlock(blockNumber uint64, block *pb.Block) error {
 }
 
 // NewOpenchainDiscoveryHello constructs a new HelloMessage for sending
+// 构建发现协议HELLO消息
 func (p *Impl) NewOpenchainDiscoveryHello() (*pb.Message, error) {
 	helloMessage, err := p.newHelloMessage()
 	if err != nil {
 		return nil, fmt.Errorf("Error getting new HelloMessage: %s", err)
 	}
+	// 编排，作为payload，所有作为payload的数据都要marshal
 	data, err := proto.Marshal(helloMessage)
 	if err != nil {
 		return nil, fmt.Errorf("Error marshalling HelloMessage: %s", err)
 	}
 	// Need to sign the Discovery Hello message
+	// 消息类型Message_DISC_HELLO
 	newDiscoveryHelloMsg := &pb.Message{Type: pb.Message_DISC_HELLO, Payload: data, Timestamp: util.CreateUtcTimestamp()}
+	// 消息签名
 	err = p.signMessageMutating(newDiscoveryHelloMsg)
 	if err != nil {
 		return nil, fmt.Errorf("Error signing new HelloMessage: %s", err)
@@ -829,6 +835,7 @@ func (p *Impl) GetSecHelper() crypto.Peer {
 }
 
 // signMessage modifies the passed in Message by setting the Signature based upon the Payload.
+// 消息签名函数
 func (p *Impl) signMessageMutating(msg *pb.Message) error {
 	if SecurityEnabled() {
 		sig, err := p.secHelper.Sign(msg.Payload)

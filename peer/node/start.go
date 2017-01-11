@@ -148,11 +148,13 @@ func serve(args []string) error {
 	// 获取gRPC服务器实例
 	grpcServer := grpc.NewServer(opts...)
 
+	// 获取安全帮助函数
 	secHelper, err := getSecHelper()
 	if err != nil {
 		return err
 	}
 
+	// 安全帮助函数
 	secHelperFunc := func() crypto.Peer {
 		return secHelper
 	}
@@ -382,9 +384,11 @@ func getSecHelper() (crypto.Peer, error) {
 			// 在docker-compose.yml中定义了，如果未定义在core.yml中查找
 			// CORE_SECURITY_ENROLLID=test_vp0
 			// CORE_SECURITY_ENROLLSECRET=MwYpmSRjupbT
+			// 节点登记id，登记密码
 			enrollID := viper.GetString("security.enrollID")
 			enrollSecret := viper.GetString("security.enrollSecret")
 			if peer.ValidatorEnabled() {
+				// 开启验证 peer.validator.enabled = true
 				logger.Debugf("Registering validator with enroll ID: %s", enrollID)
 				if err = crypto.RegisterValidator(enrollID, nil, enrollID, enrollSecret); nil != err {
 					return
@@ -395,6 +399,7 @@ func getSecHelper() (crypto.Peer, error) {
 					return
 				}
 			} else {
+				// 未开启验证 peer.validator.enabled = false
 				logger.Debugf("Registering non-validator with enroll ID: %s", enrollID)
 				if err = crypto.RegisterPeer(enrollID, nil, enrollID, enrollSecret); nil != err {
 					return
