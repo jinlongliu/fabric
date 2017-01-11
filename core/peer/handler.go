@@ -160,6 +160,7 @@ func (d *Handler) beforeHello(e *fsm.Event) {
 	msg := e.Args[0].(*pb.Message)
 
 	helloMessage := &pb.HelloMessage{}
+	// unmarshal对方发送的HelloMessage
 	err := proto.Unmarshal(msg.Payload, helloMessage)
 	if err != nil {
 		e.Cancel(fmt.Errorf("Error unmarshalling HelloMessage: %s", err))
@@ -167,6 +168,7 @@ func (d *Handler) beforeHello(e *fsm.Event) {
 	}
 	// Store the PeerEndpoint
 	// 处理器存储hello消息的句柄
+	// 获取对端PeerEndpoint,后续注册处理器时，需要以对端的PeerEndpoint.ID为键
 	d.ToPeerEndpoint = helloMessage.PeerEndpoint
 	peerLogger.Debugf("Received %s from endpoint=%s", e.Event, helloMessage)
 
@@ -179,10 +181,12 @@ func (d *Handler) beforeHello(e *fsm.Event) {
 		peerLogger.Debugf("Verified signature for %s", e.Event)
 	}
 
+	// 流未初始化
 	if d.initiatedStream == false {
 		// Did NOT intitiate the stream, need to send back HELLO
 		peerLogger.Debugf("Received %s, sending back %s", e.Event, pb.Message_DISC_HELLO.String())
 		// Send back out PeerID information in a Hello
+		// 发送一个Hello回应消息
 		helloMessage, err := d.Coordinator.NewOpenchainDiscoveryHello()
 		if err != nil {
 			e.Cancel(fmt.Errorf("Error getting new HelloMessage: %s", err))
@@ -195,6 +199,7 @@ func (d *Handler) beforeHello(e *fsm.Event) {
 	}
 	// Register
 	// 调用注册处理器，注册Handler为其处理器
+	// 对端的id，以及处理器是 peer.Handler  还是 helper.Handler
 	err = d.Coordinator.RegisterHandler(d)
 	if err != nil {
 		e.Cancel(fmt.Errorf("Error registering Handler: %s", err))
