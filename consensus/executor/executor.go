@@ -101,6 +101,9 @@ func (co *coordinatorImpl) ProcessEvent(event events.Event) events.Event {
 			return nil
 		}
 
+		// 调用Helper
+		// src/github.com/hyperledger/fabric/consensus/consensus.go:81 CommitTxBatch
+		// 接口实现 src/github.com/hyperledger/fabric/consensus/helper/helper.go:221
 		_, err := co.rawExecutor.CommitTxBatch(co, et.metadata)
 		_ = err // TODO This should probably panic, see issue 752
 

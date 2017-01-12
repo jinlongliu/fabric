@@ -222,6 +222,7 @@ func markTxFinish(ledger *ledger.Ledger, t *pb.Transaction, successful bool) {
 	ledger.TxFinished(t.Txid, successful)
 }
 
+// 调用写入事件总线
 func sendTxRejectedEvent(tx *pb.Transaction, errorMsg string) {
 	producer.Send(producer.CreateRejectionEvent(tx, errorMsg))
 }

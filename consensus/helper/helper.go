@@ -217,12 +217,14 @@ func (h *Helper) ExecTxs(id interface{}, txs []*pb.Transaction) ([]byte, error) 
 // transactions details and state changes (that may have happened
 // during execution of this transaction-batch) have been committed to
 // permanent storage.
+// 实现src/github.com/hyperledger/fabric/consensus/consensus.go:81
 func (h *Helper) CommitTxBatch(id interface{}, metadata []byte) (*pb.Block, error) {
 	ledger, err := ledger.GetLedger()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get the ledger: %v", err)
 	}
 	// TODO fix this one the ledger has been fixed to implement
+	// 提交tx
 	if err := ledger.CommitTxBatch(id, h.curBatch, h.curBatchErrs, metadata); err != nil {
 		return nil, fmt.Errorf("Failed to commit transaction to the ledger: %v", err)
 	}

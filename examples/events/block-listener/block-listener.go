@@ -28,7 +28,7 @@ import (
 	pb "github.com/hyperledger/fabric/protos"
 )
 
-// 实现事件适配器
+// 实现事件适配器，外部应用获取fabric事件
 type adapter struct {
 	notfy              chan *pb.Event_Block
 	rejected           chan *pb.Event_Rejection
@@ -38,7 +38,10 @@ type adapter struct {
 }
 
 //GetInterestedEvents implements consumer.EventAdapter interface for registering interested events
+// 获取感兴趣的事件
+// 实现src/github.com/hyperledger/fabric/events/consumer/adapter.go:26
 func (a *adapter) GetInterestedEvents() ([]*pb.Interest, error) {
+	// 事件适配器与cc关联
 	if a.chaincodeID != "" {
 		return []*pb.Interest{
 			{EventType: pb.EventType_BLOCK},
@@ -53,7 +56,9 @@ func (a *adapter) GetInterestedEvents() ([]*pb.Interest, error) {
 }
 
 //Recv implements consumer.EventAdapter interface for receiving events
+// 实现src/github.com/hyperledger/fabric/events/consumer/adapter.go:26
 func (a *adapter) Recv(msg *pb.Event) (bool, error) {
+	// 获取到事件，写入适配器channel成员内
 	if o, e := msg.Event.(*pb.Event_Block); e {
 		a.notfy <- o
 		return true, nil
@@ -72,6 +77,8 @@ func (a *adapter) Recv(msg *pb.Event) (bool, error) {
 }
 
 //Disconnected implements consumer.EventAdapter interface for disconnecting
+// 实现src/github.com/hyperledger/fabric/events/consumer/adapter.go:26
+// 断开
 func (a *adapter) Disconnected(err error) {
 	fmt.Printf("Disconnected...exiting\n")
 	os.Exit(1)
@@ -86,12 +93,15 @@ func createEventClient(eventAddress string, listenToRejections bool, cid string)
 	// NewEventsClient Returns a new grpc.ClientConn to the configured local PEER.
 	// 连向本地的gRPC client
 	obcEHClient, _ = consumer.NewEventsClient(eventAddress, 5, adapter)
+	// 客户端启动，内部实现连接服务器端，注册感兴趣的事件，同时进行处理
+	// 核心方法
 	if err := obcEHClient.Start(); err != nil {
 		fmt.Printf("could not start chat %s\n", err)
 		obcEHClient.Stop()
 		return nil
 	}
 
+	// 返回适配器
 	return adapter
 }
 
@@ -101,12 +111,13 @@ func main() {
 	var chaincodeID string
 	flag.StringVar(&eventAddress, "events-address", "0.0.0.0:7053", "address of events server")
 	flag.BoolVar(&listenToRejections, "listen-to-rejections", false, "whether to listen to rejection events")
+	// 命令行中用-events-from-chaincode 配置
 	flag.StringVar(&chaincodeID, "events-from-chaincode", "", "listen to events from given chaincode")
 	flag.Parse()
 
 	fmt.Printf("Event Address: %s\n", eventAddress)
 
-	// 创建时间客户端，连接7053端口
+	// 创建事件客户端，连接7053端口
 	a := createEventClient(eventAddress, listenToRejections, chaincodeID)
 	if a == nil {
 		fmt.Printf("Error creating event client\n")

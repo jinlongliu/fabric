@@ -29,9 +29,11 @@ type handler struct {
 }
 
 func newEventHandler(stream pb.Events_ChatServer) (*handler, error) {
+	// 事件处理着初始化
 	d := &handler{
 		ChatStream: stream,
 	}
+	// 感兴趣事件记录
 	d.interestedEvents = make(map[string]*pb.Interest)
 	return d, nil
 }
@@ -58,14 +60,19 @@ func getInterestKey(interest pb.Interest) string {
 	return key
 }
 
+// 服务器将感兴趣事件类型记录在案
 func (d *handler) register(iMsg []*pb.Interest) error {
 	// Could consider passing interest array to registerHandler
 	// and only lock once for entire array here
 	for _, v := range iMsg {
+		// 在事件处理器中注册事件处理者
 		if err := registerHandler(v, d); err != nil {
 			producerLogger.Errorf("could not register %s: %s", v, err)
 			continue
 		}
+		// 注册感兴趣事件 EventType_REGISTER EventType_BLOCK EventType_CHAINCODE
+		// 以内部事件类型为键，以消费者感兴趣的事件类型为值
+		// 同时把客户端感兴趣的事件加入到处理者的记录
 		d.interestedEvents[getInterestKey(*v)] = v
 	}
 
@@ -97,12 +104,16 @@ func (d *handler) deregisterAll() {
 func (d *handler) HandleMessage(msg *pb.Event) error {
 	//producerLogger.Debug("Handling Event")
 	switch msg.Event.(type) {
+	// src/github.com/hyperledger/fabric/events/consumer/consumer.go:73
+	// 客户端注册时将感兴趣的事件类型封装为Event_Register
 	case *pb.Event_Register:
+		// 获取所有感兴趣的事件
 		eventsObj := msg.GetRegister()
 		if err := d.register(eventsObj.Events); err != nil {
 			return fmt.Errorf("Could not register events %s", err)
 		}
 	case *pb.Event_Unregister:
+		// 取消关注处理
 		eventsObj := msg.GetUnregister()
 		if err := d.deregister(eventsObj.Events); err != nil {
 			return fmt.Errorf("Could not unregister events %s", err)
@@ -120,6 +131,7 @@ func (d *handler) HandleMessage(msg *pb.Event) error {
 }
 
 // SendMessage sends a message to the remote PEER through the stream
+// 发送消息给消费者
 func (d *handler) SendMessage(msg *pb.Event) error {
 	err := d.ChatStream.Send(msg)
 	if err != nil {

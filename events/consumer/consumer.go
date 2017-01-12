@@ -69,8 +69,10 @@ func (ec *EventsClient) send(emsg *ehpb.Event) error {
 
 // RegisterAsync - registers interest in a event and doesn't wait for a response
 func (ec *EventsClient) RegisterAsync(ies []*ehpb.Interest) error {
+	// 将感兴趣事件类型，封装为注册事件 Event_Register
 	emsg := &ehpb.Event{Event: &ehpb.Event_Register{Register: &ehpb.Register{Events: ies}}}
 	var err error
+	// 发送给服务器
 	if err = ec.send(emsg); err != nil {
 		fmt.Printf("error on Register send %s\n", err)
 	}
@@ -79,6 +81,7 @@ func (ec *EventsClient) RegisterAsync(ies []*ehpb.Interest) error {
 
 // register - registers interest in a event
 func (ec *EventsClient) register(ies []*ehpb.Interest) error {
+	// 客户端注册感兴趣事件，异步注册
 	var err error
 	if err = ec.RegisterAsync(ies); err != nil {
 		return err
@@ -110,6 +113,7 @@ func (ec *EventsClient) register(ies []*ehpb.Interest) error {
 
 // UnregisterAsync - Unregisters interest in a event and doesn't wait for a response
 func (ec *EventsClient) UnregisterAsync(ies []*ehpb.Interest) error {
+	// 取消关注
 	emsg := &ehpb.Event{Event: &ehpb.Event_Unregister{Unregister: &ehpb.Unregister{Events: ies}}}
 	var err error
 	if err = ec.send(emsg); err != nil {
@@ -196,11 +200,14 @@ func (ec *EventsClient) processEvents() error {
 
 //Start establishes connection with Event hub and registers interested events with it
 func (ec *EventsClient) Start() error {
+	// 客户端实现，启动方法
+	// 连接服务器端
 	conn, err := newEventsClientConnectionWithAddress(ec.peerAddress)
 	if err != nil {
 		return fmt.Errorf("Could not create client conn to %s", ec.peerAddress)
 	}
 
+	// 获取客户端适配器感兴趣的事件
 	ies, err := ec.adapter.GetInterestedEvents()
 	if err != nil {
 		return fmt.Errorf("error getting interested events:%s", err)
@@ -210,16 +217,20 @@ func (ec *EventsClient) Start() error {
 		return fmt.Errorf("must supply interested events")
 	}
 
+	// 获得gRPC客户端
 	serverClient := ehpb.NewEventsClient(conn)
+	// 调用服务端Chat构建gRPC通道和服务端交互
 	ec.stream, err = serverClient.Chat(context.Background())
 	if err != nil {
 		return fmt.Errorf("Could not create client conn to %s", ec.peerAddress)
 	}
 
+	// 注册感兴趣事件
 	if err = ec.register(ies); err != nil {
 		return err
 	}
 
+	// 处理事件
 	go ec.processEvents()
 
 	return nil

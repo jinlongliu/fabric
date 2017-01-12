@@ -145,6 +145,7 @@ func (ledger *Ledger) GetTXBatchPreviewBlockInfo(id interface{},
 // CommitTxBatch - gets invoked when the current transaction-batch needs to be committed
 // This function returns successfully iff the transactions details and state changes (that
 // may have happened during execution of this transaction-batch) have been committed to permanent storage
+// 被src/github.com/hyperledger/fabric/consensus/helper/helper.go:228调用
 func (ledger *Ledger) CommitTxBatch(id interface{}, transactions []*protos.Transaction, transactionResults []*protos.TransactionResult, metadata []byte) error {
 	err := ledger.checkValidIDCommitORRollback(id)
 	if err != nil {
@@ -208,6 +209,7 @@ func (ledger *Ledger) CommitTxBatch(id interface{}, transactions []*protos.Trans
 	sendProducerBlockEvent(block)
 
 	//send chaincode events from transaction results
+	// 发送chaincode事件，交易执行结果
 	sendChaincodeEvents(transactionResults)
 
 	if len(transactionResults) != 0 {
@@ -523,12 +525,14 @@ func sendProducerBlockEvent(block *protos.Block) {
 }
 
 //send chaincode events created by transactions
+// 调用写入事件总线，chaincode事件
 func sendChaincodeEvents(trs []*protos.TransactionResult) {
 	if trs != nil {
 		for _, tr := range trs {
 			//we store empty chaincode events in the protobuf repeated array to make protobuf happy.
 			//when we replay off a block ignore empty events
 			if tr.ChaincodeEvent != nil && tr.ChaincodeEvent.ChaincodeID != "" {
+				// 发送chaincode event
 				producer.Send(producer.CreateChaincodeEvent(tr.ChaincodeEvent))
 			}
 		}

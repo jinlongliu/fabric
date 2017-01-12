@@ -37,10 +37,12 @@ type EventsServer struct {
 var globalEventsServer *EventsServer
 
 // NewEventsServer returns a EventsServer
+// 事件服务器
 func NewEventsServer(bufferSize uint, timeout int) *EventsServer {
 	if globalEventsServer != nil {
 		panic("Cannot create multiple event hub servers")
 	}
+	// 全局事件服务器
 	globalEventsServer = new(EventsServer)
 	initializeEvents(bufferSize, timeout)
 	//initializeCCEventProcessor(bufferSize, timeout)
@@ -48,13 +50,20 @@ func NewEventsServer(bufferSize uint, timeout int) *EventsServer {
 }
 
 // Chat implementation of the the Chat bidi streaming RPC function
+// gRPC服务端实现，供gRPC客户端调用
+// src/github.com/hyperledger/fabric/events/consumer/consumer.go:222
 func (p *EventsServer) Chat(stream pb.Events_ChatServer) error {
+	// gRPC提供流stream供客户端服务端读写
+	// 事件服务器启动时，启动了一个事件处理器
+	// 每次客户端发来一次请求，就通过和客户端的stream，生成一个事件处理者
 	handler, err := newEventHandler(stream)
 	if err != nil {
 		return fmt.Errorf("Error creating handler during handleChat initiation: %s", err)
 	}
 	defer handler.Stop()
 	for {
+		// 服务端接收到客户端的消息
+		// 主要应用场景是服务端发客户端感兴趣的事件给客户端，但是在注册阶段客户端会发送一些注册事件给服务器端
 		in, err := stream.Recv()
 		if err == io.EOF {
 			producerLogger.Debug("Received EOF, ending Chat")
@@ -65,6 +74,7 @@ func (p *EventsServer) Chat(stream pb.Events_ChatServer) error {
 			producerLogger.Error(e.Error())
 			return e
 		}
+		// 用处理器处理
 		err = handler.HandleMessage(in)
 		if err != nil {
 			producerLogger.Errorf("Error handling message: %s", err)

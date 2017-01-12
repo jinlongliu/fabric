@@ -52,6 +52,7 @@ func addInternalEventTypes() {
 	// 在控制台会有个日志输出，eventhub_producer] AddEventType -> DEBU 007 registering BLOCK
 	// AddEventType -> DEBU 008 registering CHAINCODE
 	// ...
+	// 注册内部事件
 	AddEventType(pb.EventType_BLOCK)
 	AddEventType(pb.EventType_CHAINCODE)
 	AddEventType(pb.EventType_REJECTION)

@@ -66,6 +66,7 @@ type Interest struct {
 	//
 	// Types that are valid to be assigned to RegInfo:
 	//	*Interest_ChaincodeRegInfo
+	// 感兴趣的cc注册信息
 	RegInfo isInterest_RegInfo `protobuf_oneof:"RegInfo"`
 }
 
